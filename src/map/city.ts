@@ -638,23 +638,10 @@ function bakeNavFromBuildings(city: City): void {
       }
     }
   }
-  // Doorways: carve a small opening so interiors read as enterable.
-  for (const b of city.buildings) {
-    if (b.arch.id === 'warehouse' || b.arch.id === 'shed' || b.arch.id === 'mall') continue;
-    const c = Math.cos(b.rot), s = Math.sin(b.rot);
-    const edge = Math.floor((b.roofVariation * 4) % 4);
-    const hw = b.w / 2, hd = b.d / 2;
-    let lx = 0, ly = 0;
-    if (edge === 0) { lx = 0; ly = -hd - 4; }
-    else if (edge === 1) { lx = hw + 4; ly = 0; }
-    else if (edge === 2) { lx = 0; ly = hd + 4; }
-    else { lx = -hw - 4; ly = 0; }
-    const wx = b.cx + lx * c - ly * s, wy = b.cy + lx * s + ly * c;
-    for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
-      const gx = clamp(((wx / NAV) | 0) + ox, 0, NAV_W - 1), gy = clamp(((wy / NAV) | 0) + oy, 0, NAV_H - 1);
-      nav.blocked[gy * NAV_W + gx] = 0;
-    }
-  }
+  // Buildings are solid. The "doorway" carve that used to sit here cleared a
+  // 3x3 block of cells around a point just outside one wall; at NAV = 24 that is
+  // a 72x72 unit hole, wider than most buildings, so it deleted roughly
+  // three quarters of the city's building volume from the grid.
 }
 
 function scatterTrees(city: City, rng: Rng): void {

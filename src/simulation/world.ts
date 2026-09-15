@@ -22,6 +22,8 @@ export interface Human {
   x: number; y: number;
   vx: number; vy: number;
   faceX: number; faceY: number;
+  /** last direction bucket the renderer drew (-1 = not yet resolved) */
+  faceBucket: number;
   hp: number; maxHp: number;
   morale: number;
   cls: HumanClass;
@@ -59,6 +61,8 @@ export interface Zombie {
   x: number; y: number;
   vx: number; vy: number;
   faceX: number; faceY: number;
+  /** last direction bucket the renderer drew (-1 = not yet resolved) */
+  faceBucket: number;
   hp: number; maxHp: number;
   cls: ZombieClass;
   typeIndex: number;
@@ -162,7 +166,7 @@ export class World {
     const h: Human = {
       id: this.nextId++,
       x: p.x, y: p.y, vx: 0, vy: 0,
-      faceX: Math.cos(a), faceY: Math.sin(a),
+      faceX: Math.cos(a), faceY: Math.sin(a), faceBucket: -1,
       hp: st.hp, maxHp: st.hp,
       morale: MORALE.base + this.rng.jitter(6),
       cls, typeIndex: TYPE_INDEX[cls]!,
@@ -188,7 +192,7 @@ export class World {
     const z: Zombie = {
       id: this.nextId++,
       x: p.x, y: p.y, vx: 0, vy: 0,
-      faceX: Math.cos(a), faceY: Math.sin(a),
+      faceX: Math.cos(a), faceY: Math.sin(a), faceBucket: -1,
       hp: st.hp, maxHp: st.hp,
       cls, typeIndex: TYPE_INDEX[cls]!,
       speed: st.speed * (1 + this.rng.jitter(st.speedVar)),

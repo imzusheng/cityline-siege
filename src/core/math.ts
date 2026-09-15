@@ -22,6 +22,22 @@ export function angleTowards(cur: number, target: number, maxStep: number): numb
   if (Math.abs(d) <= maxStep) return target;
   return cur + Math.sign(d) * maxStep;
 }
+/**
+ * Turn a unit's facing toward (dx, dy) at a bounded angular rate, in radians per
+ * second.
+ *
+ * Facing is re-derived every tick from whatever the unit happens to be looking
+ * at, and both a jostling target at close range and a per-tick velocity estimate
+ * at low speed give a noisy direction — a soldier creeping at a few units per
+ * second can have its heading swing tens of degrees between one tick and the
+ * next. Snapping straight onto that noise swaps the sprite between atlas
+ * directions many times a second, which reads as the figure twitching.
+ */
+export function faceTowards(u: { faceX: number; faceY: number }, dx: number, dy: number, dt: number, rate = 6): void {
+  if (Math.abs(dx) < 1e-6 && Math.abs(dy) < 1e-6) return;
+  const a = angleTowards(Math.atan2(u.faceY, u.faceX), Math.atan2(dy, dx), rate * dt);
+  u.faceX = Math.cos(a); u.faceY = Math.sin(a);
+}
 export function approach(cur: number, target: number, maxStep: number): number {
   if (cur < target) return Math.min(cur + maxStep, target);
   return Math.max(cur - maxStep, target);

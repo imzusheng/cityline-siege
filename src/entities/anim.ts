@@ -43,11 +43,28 @@ export function animFrameIndex(anim: AnimName, frame: number): number {
   return ANIM_OFFSET[anim] + f;
 }
 
-/** Screen-space facing angle (unpitched) -> direction bucket 0..7. */
-export function dirBucket(phi: number): number {
+/** Degrees the facing may drift from the held bucket before the sprite swaps. */
+const DIR_HOLD_DEG = 30;
+
+/**
+ * Screen-space facing angle (unpitched) -> direction bucket 0..7.
+ *
+ * `prev` is the bucket currently in use, or -1 when unset. Rounding the angle
+ * straight to the nearest 45 degrees makes the sprite flip between two
+ * neighbouring directions whenever the facing sits near a bucket edge — measured
+ * at up to 19 flips per second on a soldier tracking a jittering target, which
+ * reads as the model twitching. Holding the current bucket until the angle is
+ * well past the boundary removes that without making the turn feel late.
+ */
+export function dirBucket(phi: number, prev = -1): number {
   let a = phi * (180 / Math.PI);
   a = ((a % 360) + 360) % 360;
-  return Math.round(a / 45) % 8;
+  const raw = Math.round(a / 45) % 8;
+  if (prev < 0) return raw;
+  let d = a - prev * 45;
+  d = ((d % 360) + 360) % 360;
+  if (d > 180) d -= 360;
+  return Math.abs(d) <= DIR_HOLD_DEG ? prev : raw;
 }
 
 export interface AnimState {

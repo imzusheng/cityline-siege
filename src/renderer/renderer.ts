@@ -410,8 +410,8 @@ export class Renderer {
     for (let i = 0; i < humans.length; i++) {
       const h = humans[i]!;
       if (!h.alive && h.deadT > 1.1) continue;
-      const phi = cam.screenAngle(h.faceX, h.faceY);
-      const bucket = dirBucket(phi);
+      h.faceBucket = dirBucket(cam.screenAngle(h.faceX, h.faceY), h.faceBucket);
+      const bucket = h.faceBucket;
       const base = DIR_TO_BASE[bucket]!;
       const mirror = DIR_MIRROR[bucket]!;
       const frameIdx = animFrameIndex(h.anim.name, h.anim.frame);
@@ -429,8 +429,8 @@ export class Renderer {
     for (let i = 0; i < zombies.length; i++) {
       const z = zombies[i]!;
       if (!z.alive && z.deadT > 1.1) continue;
-      const phi = cam.screenAngle(z.faceX, z.faceY);
-      const bucket = dirBucket(phi);
+      z.faceBucket = dirBucket(cam.screenAngle(z.faceX, z.faceY), z.faceBucket);
+      const bucket = z.faceBucket;
       const base = DIR_TO_BASE[bucket]!;
       const mirror = DIR_MIRROR[bucket]!;
       const frameIdx = animFrameIndex(z.anim.name, z.anim.frame);
@@ -464,8 +464,9 @@ export class Renderer {
     for (let i = 0; i < humans.length; i++) {
       const h = humans[i]!;
       if (!h.alive || h.shotT <= 0) continue;
-      const phi = cam.screenAngle(h.faceX, h.faceY);
-      const bucket = dirBucket(phi);
+      // reuse the bucket the sprite pass settled on, so the flash and the body
+      // can never disagree about which way the soldier is facing
+      const bucket = h.faceBucket >= 0 ? h.faceBucket : dirBucket(cam.screenAngle(h.faceX, h.faceY));
       const base = DIR_TO_BASE[bucket]!;
       const mirror = DIR_MIRROR[bucket]!;
       const frameIdx = animFrameIndex(h.anim.name, h.anim.frame);
@@ -484,7 +485,12 @@ export class Renderer {
           muzzleX - size * 0.5 - a.x, muzzleY - size * 0.5 - a.y, size, size,
           1.0, 0.84 * k + 0.1, 0.46 * k + 0.05, 0.85 * k);
       }
-      const tgt = cam.worldToScreen(h.shotX, h.shotY);
+      // worldToScreen projects onto the ground plane, so lift the target by the
+      // same offset the muzzle sits above its own feet. Otherwise every tracer
+      // dives into the ground at the victim's feet instead of running level at
+      // weapon height.
+      const tgtBase = cam.worldToScreen(h.shotX, h.shotY);
+      const tgt = { x: tgtBase.x, y: tgtBase.y + my * scale };
       if (n + 6 <= capQuads) {
         const dx = tgt.x - muzzleX, dy = tgt.y - muzzleY;
         const l = Math.hypot(dx, dy) || 1;

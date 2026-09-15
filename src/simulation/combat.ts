@@ -1,7 +1,7 @@
 // Combat resolution: shooting, melee contact, damage and the feedback effects
 // that make a firefight readable from three zoom levels away.
 
-import { clamp, TAU } from '../core/math';
+import { clamp, faceTowards, TAU } from '../core/math';
 import { HUMAN_STATS, ZOMBIE_STATS } from '../core/config';
 import { FX, type Human, type World, type Zombie } from './world';
 
@@ -25,7 +25,7 @@ export function humanFire(world: World, h: Human, z: Zombie, dt: number): void {
 
   const dx = z.x - h.x, dy = z.y - h.y;
   const dist = Math.hypot(dx, dy) || 1;
-  h.faceX = dx / dist; h.faceY = dy / dist;
+  faceTowards(h, dx, dy, dt);
   const burst = h.cls === 'gunner' ? 3 : 1;
   h.cool = st.cooldown;
 
@@ -79,8 +79,7 @@ export function zombieAttack(world: World, z: Zombie, h: Human, dt: number): voi
   const st = ZOMBIE_STATS[z.cls];
   z.cool -= dt;
   const dx = h.x - z.x, dy = h.y - z.y;
-  const d = Math.hypot(dx, dy) || 1;
-  z.faceX = dx / d; z.faceY = dy / d;
+  faceTowards(z, dx, dy, dt);
   if (z.cool > 0) return;
   z.cool = st.attackRate * (0.8 + world.rng.next() * 0.5);
   z.anim.name = 'melee'; z.anim.t = 0; z.anim.frame = 0; z.anim.done = false;

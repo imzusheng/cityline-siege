@@ -4,7 +4,7 @@
 // the spatial hashes, the horde follows a shared flow field, and distant units
 // think on a slower cadence while still integrating every tick.
 
-import { clamp, lerp, TAU } from '../core/math';
+import { clamp, faceTowards, lerp, TAU } from '../core/math';
 import { HUMAN_STATS, MORALE, SIM_DT, ZOMBIE_STATS } from '../core/config';
 import { advanceAnim, setAnim, type AnimName } from '../entities/anim';
 import { canEngage, damageHuman, humanFire, zombieAttack, zombieHitBarricade, zombiePressure } from './combat';
@@ -124,7 +124,7 @@ export function tickHuman(world: World, h: Human, dt: number): void {
     const d = Math.hypot(dx, dy);
     if (d > st.range * 1.15) { h.target = null; h.aim *= 0.6; }
     else {
-      h.faceX = dx / (d || 1); h.faceY = dy / (d || 1);
+      faceTowards(h, dx, dy, dt);
       if (d < 11) h.melee = Math.max(h.melee, 0.3);
       firing = true;
       humanFire(world, h, t, dt);
@@ -229,8 +229,8 @@ export function tickHuman(world: World, h: Human, dt: number): void {
   // ---------------------------------------------------------------- facing
   if (!firing) {
     const sp = Math.hypot(h.vx, h.vy);
-    if (sp > 6) { h.faceX = h.vx / sp; h.faceY = h.vy / sp; }
-    else if (order) { h.faceX = order.frontX; h.faceY = order.frontY; }
+    if (sp > 6) faceTowards(h, h.vx, h.vy, dt);
+    else if (order) faceTowards(h, order.frontX, order.frontY, dt);
   }
 
   // ---------------------------------------------------------------- animation

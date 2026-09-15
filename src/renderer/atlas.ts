@@ -72,8 +72,11 @@ export function buildAtlases(onProgress?: (p: number) => void): AtlasLayout {
           const phase = (f + 0.5) / n;
           const res = renderFigure(uctx, spec, anim, f, phase, angle, cx + UNIT_CELL / 2, cy + FEET_ROW);
           const mi = ((t * DIR_BASE + d) * TOTAL_FRAMES + frameIndex) * 2;
-          muzzle[mi] = res.muzzle.x - (cx + UNIT_CELL / 2);
-          muzzle[mi + 1] = res.muzzle.y - (cy + FEET_ROW);
+          // renderFigure translates the context to (cx + UNIT_CELL/2, cy + FEET_ROW)
+          // itself, so its muzzle point is already expressed relative to that
+          // anchor — store it as-is rather than subtracting the cell origin twice.
+          muzzle[mi] = res.muzzle.x;
+          muzzle[mi + 1] = res.muzzle.y;
         }
       }
     }
