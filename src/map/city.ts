@@ -38,18 +38,18 @@ export const ARCHETYPES: Record<string, Archetype> = {
   house:      { id: 'house',      label: '老宅',    floors: [2, 4],  floorH: [10.0, 11.8], size: [52, 96, 52, 96],     wall: 'brick',       ground: 'entry',     roof: 'tile',   feature: 'none',    detail: 0.5, weight: 1.0 },
   rowhouse:   { id: 'rowhouse',   label: '联排',    floors: [3, 5],  floorH: [10.0, 11.6], size: [42, 62, 84, 150],    wall: 'brick',       ground: 'entry',     roof: 'tile',   feature: 'tank',    detail: 0.35, weight: 0.9 },
   derelict:   { id: 'derelict',   label: '弃屋',    floors: [1, 2],  floorH: [10.5, 12.6], size: [60, 130, 55, 120],   wall: 'derelict',    ground: 'shutter',   roof: 'tar',    feature: 'none',    detail: 0.2, weight: 0.45 },
-  apartment:  { id: 'apartment',  label: '公寓',    floors: [5, 8],  floorH: [10.4, 11.6], size: [86, 165, 58, 110],   wall: 'residential', ground: 'entry',     roof: 'gravel', feature: 'tank',    detail: 0.6, weight: 1.0 },
-  block:      { id: 'block',      label: '住宅楼',  floors: [9, 15], floorH: [10.4, 11.6], size: [86, 150, 86, 150],   wall: 'concrete',    ground: 'lobby',     roof: 'gravel', feature: 'vents',   detail: 0.7, weight: 0.75 },
-  office:     { id: 'office',     label: '写字楼',  floors: [8, 16], floorH: [12.4, 14.4], size: [104, 185, 86, 165],  wall: 'glass',       ground: 'lobby',     roof: 'gravel', feature: 'vents',   detail: 0.8, weight: 0.9 },
+  apartment:  { id: 'apartment',  label: '公寓',    floors: [3, 6],  floorH: [10.4, 11.6], size: [86, 165, 58, 110],   wall: 'residential', ground: 'entry',     roof: 'gravel', feature: 'tank',    detail: 0.6, weight: 1.0 },
+  block:      { id: 'block',      label: '住宅楼',  floors: [5, 8], floorH: [10.4, 11.6], size: [86, 150, 86, 150],   wall: 'concrete',    ground: 'lobby',     roof: 'gravel', feature: 'vents',   detail: 0.7, weight: 0.75 },
+  office:     { id: 'office',     label: '写字楼',  floors: [5, 9], floorH: [12.4, 14.4], size: [104, 185, 86, 165],  wall: 'glass',       ground: 'lobby',     roof: 'gravel', feature: 'vents',   detail: 0.8, weight: 0.9 },
   shop:       { id: 'shop',       label: '沿街商业', floors: [2, 3], floorH: [12.6, 14.8], size: [70, 148, 48, 92],   wall: 'panel',       ground: 'shopfront', roof: 'tar',    feature: 'vents',   detail: 0.8, weight: 0.85 },
-  shopRow:    { id: 'shopRow',    label: '商业楼',  floors: [4, 7],  floorH: [12.0, 13.6], size: [78, 140, 58, 104],   wall: 'concrete',    ground: 'shopfront', roof: 'gravel', feature: 'vents',   detail: 0.75, weight: 0.8 },
+  shopRow:    { id: 'shopRow',    label: '商业楼',  floors: [3, 5],  floorH: [12.0, 13.6], size: [78, 140, 58, 104],   wall: 'concrete',    ground: 'shopfront', roof: 'gravel', feature: 'vents',   detail: 0.75, weight: 0.8 },
   clinic:     { id: 'clinic',     label: '诊所',    floors: [3, 5],  floorH: [11.4, 12.8], size: [70, 120, 54, 96],    wall: 'hospital',    ground: 'clinic',    roof: 'gravel', feature: 'vents',   detail: 0.6, weight: 0.4 },
-  mall:       { id: 'mall',       label: '商业中心', floors: [3, 5], floorH: [16.0, 19.0], size: [190, 330, 140, 250], wall: 'glass',       ground: 'shopfront', roof: 'gravel', feature: 'garden',  detail: 1.0, weight: 0.28 },
-  warehouse:  { id: 'warehouse',  label: '仓库',    floors: [1, 2],  floorH: [17.0, 22.0], size: [110, 235, 85, 165],  wall: 'metal',       ground: 'loading',   roof: 'metal',  feature: 'sawtooth',detail: 0.5, weight: 1.1 },
+  mall:       { id: 'mall',       label: '商业中心', floors: [2, 4], floorH: [16.0, 19.0], size: [190, 330, 140, 250], wall: 'glass',       ground: 'shopfront', roof: 'gravel', feature: 'garden',  detail: 1.0, weight: 0.28 },
+  warehouse:  { id: 'warehouse',  label: '仓库',    floors: [1, 1],  floorH: [17.0, 22.0], size: [110, 235, 85, 165],  wall: 'metal',       ground: 'loading',   roof: 'metal',  feature: 'sawtooth',detail: 0.5, weight: 1.1 },
   shed:       { id: 'shed',       label: '厂房',    floors: [1, 1],  floorH: [14.0, 19.0], size: [52, 125, 46, 105],   wall: 'metal',       ground: 'warehouse', roof: 'metal',  feature: 'vents',   detail: 0.3, weight: 0.8 },
-  hospital:   { id: 'hospital',   label: '医院',    floors: [6, 9],  floorH: [11.8, 13.6], size: [200, 300, 118, 190], wall: 'hospital',    ground: 'clinic',    roof: 'gravel', feature: 'helipad', detail: 0.9, weight: 0.2 },
-  civic:      { id: 'civic',      label: '市政厅',  floors: [4, 6],  floorH: [15.4, 18.2], size: [175, 255, 130, 190], wall: 'stone',       ground: 'civic',     roof: 'tile',   feature: 'garden',  detail: 1.0, weight: 0.2 },
-  tower:      { id: 'tower',      label: '地标塔',  floors: [17, 26],floorH: [11.8, 13.6], size: [72, 108, 72, 108],   wall: 'glass',       ground: 'lobby',     roof: 'gravel', feature: 'antenna', detail: 0.9, weight: 0.18 },
+  hospital:   { id: 'hospital',   label: '医院',    floors: [4, 7],  floorH: [11.8, 13.6], size: [200, 300, 118, 190], wall: 'hospital',    ground: 'clinic',    roof: 'gravel', feature: 'helipad', detail: 0.9, weight: 0.2 },
+  civic:      { id: 'civic',      label: '市政厅',  floors: [3, 5],  floorH: [15.4, 18.2], size: [175, 255, 130, 190], wall: 'stone',       ground: 'civic',     roof: 'tile',   feature: 'garden',  detail: 1.0, weight: 0.2 },
+  tower:      { id: 'tower',      label: '地标塔',  floors: [11, 16],floorH: [11.8, 13.6], size: [72, 108, 72, 108],   wall: 'glass',       ground: 'lobby',     roof: 'gravel', feature: 'antenna', detail: 0.9, weight: 0.18 },
 };
 
 export interface Building {
@@ -438,7 +438,7 @@ function placeBlock(city: City, d: District, rect: { x: number; y: number; w: nu
   const w = rect.w - inset * 2, h = rect.h - inset * 2;
   if (w < 40 || h < 40) { GEN_STATS.small++; return; }
   const target = lotTarget(d);
-  let nx = clamp(Math.round(w / target), 1, 4);
+  let nx = clamp(Math.round(w / target), 1, 3);
   let ny = clamp(Math.round(h / (target * 1.05)), 1, 3);
   if (nx === 1 && ny === 1 && w > 120 && h > 110) ny = 2;
   // occasionally one big volume takes the whole block
@@ -447,12 +447,12 @@ function placeBlock(city: City, d: District, rect: { x: number; y: number; w: nu
   for (let a = 0; a < nx; a++) {
     for (let b = 0; b < ny; b++) {
       GEN_STATS.candidates++;
-      if (nx * ny > 1 && rng.chance(0.16)) { GEN_STATS.vacant++; continue; }
+      if (nx * ny > 1 && rng.chance(0.26)) { GEN_STATS.vacant++; continue; }
       const cx = x0 + (a + 0.5) * lw + rng.jitter(lw * 0.03);
       const cy = y0 + (b + 0.5) * lh + rng.jitter(lh * 0.03);
       // ~30% of every lot stays open: courtyards, parking, alleys the horde
       // can pour through and the camera can see through
-      placeLot(city, d, cx, cy, lw * 0.70, lh * 0.70, rng.jitter(0.025), rng);
+      placeLot(city, d, cx, cy, lw * 0.58, lh * 0.58, rng.jitter(0.02), rng);
     }
   }
 }
@@ -704,6 +704,22 @@ function scatterDebris(city: City, rng: Rng): void {
 
 function placeBarricades(city: City, rng: Rng): void {
   let id = 0;
+  // Fortified positions around each objective: short sandbag lines with wide
+  // gaps, so they read as cover the player can anchor on rather than a wall.
+  for (const o of city.objectives) {
+    const segs = 5;
+    for (let s = 0; s < segs; s++) {
+      const a0 = (s / segs) * Math.PI * 2 + 0.4;
+      for (let k = 0; k < 3; k++) {
+        const a = a0 + (k - 1) * 0.06;
+        const x = o.x + Math.cos(a) * o.r * 0.94;
+        const y = o.y + Math.sin(a) * o.r * 0.94;
+        if (!city.nav.isOpenWorld(x, y)) continue;
+        const hp = 520 + rng.range(0, 260);
+        city.barricades.push({ id: id++, x, y, rot: a + Math.PI / 2, hp, maxHp: hp, alive: true, cellX: (x / NAV) | 0, cellY: (y / NAV) | 0, kind: rng.chance(0.5) ? 0 : 1 });
+      }
+    }
+  }
   for (const d of city.districts) {
     const count = d.kind === 'oldtown' ? 22 : d.kind === 'storage' ? 14 : 10;
     for (let i = 0; i < count; i++) {

@@ -307,15 +307,8 @@ function emitViaduct(mb: MeshBuilder, city: City, rng: Rng): void {
   }
 }
 
-function emitObjectives(mb: MeshBuilder, city: City): void {
-  for (const o of city.objectives) {
-    // a low sandbag-and-concrete pad marking each strategic node
-    const n = 24;
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2;
-      const x = o.x + Math.cos(a) * o.r;
-      const y = o.y + Math.sin(a) * o.r;
-      mb.box(x, y, 0, 3.2, 12, 12, a, wallLayer(WALL_STYLE.concrete!, VARIANT.intact) as number, 0.85);
-    }
-  }
-}
+/** The objective ring used to be 24 concrete blocks placed on the zone radius —
+ *  they read as random floating boxes and clipped through roads and buildings.
+ *  The zone is painted into the ground texture instead, and fortified with
+ *  sandbag positions in the city generator. */
+function emitObjectives(_mb: MeshBuilder, _city: City): void { /* intentionally empty */ }

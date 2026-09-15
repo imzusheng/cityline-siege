@@ -72,7 +72,7 @@ async function run() {
   if (scenario === 'smoke') {
     await shot('00-splash');
     await page.click('#btn-start');
-    await settle(4);
+    await settle(20);
     await shot('01-initial');
     await step(20);
     await settle(3);
@@ -84,12 +84,12 @@ async function run() {
     await shot('03-t80');
   } else if (scenario === 'shots') {
     await page.click('#btn-start');
-    await settle(4);
+    await settle(20);
 
     // 01 — the whole city from the strategic layer
     await page.evaluate(() => { window.__CITYLINE__.camera(3200, 2400, 0.13); });
     await step(28);
-    await settle(4);
+    await settle(20);
     await shot('01-city-overview');
     results.snapshots.overview = await snap();
 
@@ -102,9 +102,9 @@ async function run() {
       C.issue('hold', o.x - 300, o.y - 60, o.x + 300, o.y - 60);
     });
     await step(26);
-    await settle(4);
-    await page.evaluate(() => { window.__CITYLINE__.camera(2965, 2130, 1.5); });
-    await settle(6);
+    await settle(20);
+    await page.evaluate(() => { window.__CITYLINE__.camera(2965, 2130, 3.2); });
+    await settle(22);
     await shot('02-defense-line');
     results.snapshots.line = await snap();
     results.orders = await page.evaluate(() => window.__CITYLINE__.orderStats());
@@ -115,31 +115,31 @@ async function run() {
       const p = C.densest();
       C.camera(p.x, p.y, 0.62);
     });
-    await settle(6);
+    await settle(22);
     await shot('03-zombie-horde');
     results.snapshots.horde = await snap();
 
     // run until the lines are actually in contact
     await page.evaluate(() => window.__CITYLINE__.step(150));
-    await settle(4);
+    await settle(20);
     await page.evaluate(() => {
       const C = window.__CITYLINE__;
       const p = C.contact();
-      C.camera(p.x, p.y, 2.4);
+      C.camera(p.x, p.y, 3.6);
     });
-    await settle(6);
+    await settle(22);
     await shot('04-contact');
     results.snapshots.contact = await snap();
 
     // let the line buckle, then photograph the break
     await page.evaluate(() => window.__CITYLINE__.step(180));
-    await settle(4);
+    await settle(20);
     await page.evaluate(() => {
       const C = window.__CITYLINE__;
       const p = C.contact();
       C.camera(p.x, p.y, 1.35);
     });
-    await settle(6);
+    await settle(22);
     await shot('05-breach');
     results.snapshots.breach = await snap();
 
@@ -159,17 +159,17 @@ async function run() {
         });
         if (n > bn) { bn = n; best = h; bx = c ? sx / c : h.x; by = c ? sy / c : h.y; bc = c; }
       }
-      if (best) C.camera((best.x + bx) / 2, (best.y + by) / 2, 8);
+      if (best) C.camera((best.x + bx) / 2, (best.y + by) / 2, 7);
       window.__CLOSE_INFO__ = { zombies: bn, at: best ? [Math.round(best.x), Math.round(best.y)] : null };
     });
-    await settle(6);
+    await settle(22);
     await shot('06-close-up');
     results.snapshots.closeup = await snap();
     results.closeInfo = await page.evaluate(() => window.__CLOSE_INFO__);
     results.fps.push(await measureFps(5));
   } else if (scenario === 'qa') {
     await page.click('#btn-start');
-    await settle(4);
+    await settle(20);
     await shot('01-city-overview');
     results.snapshots.overview = await snap();
 
@@ -219,10 +219,10 @@ async function run() {
     results.snapshots.contact = await snap();
   } else if (scenario === 'perf') {
     await page.click('#btn-start');
-    await settle(4);
+    await settle(20);
     const measure = async (label, prep) => {
       if (prep) await prep();
-      await settle(6);
+      await settle(22);
       const s = await snap();
       const fps = await measureFps(5);
       results.fps.push({ label, fps: Number(fps.toFixed(1)), units: s.humans + s.zombies, corpses: s.corpses, zoom: Number(s.zoom.toFixed(2)), time: Math.round(s.time) });

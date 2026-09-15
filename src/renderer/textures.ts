@@ -518,11 +518,11 @@ export function bakeGround(city: City): HTMLCanvasElement {
   x.fillStyle = '#54554b';
   x.fillRect(0, 0, GROUND_TEX_W, GROUND_TEX_H);
 
-  for (let i = 0; i < 620; i++) {
-    const r = rng.range(70, 460);
+  for (let i = 0; i < 520; i++) {
+    const r = rng.range(50, 260);
     x.fillStyle = rng.chance(0.5)
-      ? `rgba(255,255,255,${rng.range(0.008, 0.028).toFixed(3)})`
-      : `rgba(0,0,0,${rng.range(0.01, 0.05).toFixed(3)})`;
+      ? `rgba(255,255,255,${rng.range(0.004, 0.013).toFixed(3)})`
+      : `rgba(0,0,0,${rng.range(0.005, 0.018).toFixed(3)})`;
     x.beginPath();
     x.ellipse(rng.range(0, GROUND_TEX_W), rng.range(0, GROUND_TEX_H), r, r * rng.range(0.5, 1), rng.range(0, 3), 0, 6.283);
     x.fill();
@@ -689,11 +689,12 @@ export function bakeGround(city: City): HTMLCanvasElement {
     x.lineWidth = Math.max(1, 3 * sc);
     x.stroke();
     // soft ambient occlusion skirt so buildings sit on the ground
-    const ao = x.createRadialGradient(b.cx * sc, b.cy * sc, Math.max(b.w, b.d) * 0.28 * sc, b.cx * sc, b.cy * sc, Math.max(b.w, b.d) * 0.95 * sc);
-    ao.addColorStop(0, 'rgba(10,11,10,0.42)');
+    const aoR = Math.max(b.w, b.d) * 0.66;
+    const ao = x.createRadialGradient(b.cx * sc, b.cy * sc, Math.max(b.w, b.d) * 0.30 * sc, b.cx * sc, b.cy * sc, aoR * sc);
+    ao.addColorStop(0, 'rgba(10,11,10,0.30)');
     ao.addColorStop(1, 'rgba(10,11,10,0)');
     x.fillStyle = ao;
-    x.beginPath(); x.ellipse(b.cx * sc, b.cy * sc, Math.max(b.w, b.d) * 0.95 * sc, Math.max(b.w, b.d) * 0.95 * sc * 0.85, 0, 0, 6.283); x.fill();
+    x.beginPath(); x.ellipse(b.cx * sc, b.cy * sc, aoR * sc, aoR * sc * 0.82, 0, 0, 6.283); x.fill();
   }
 
   for (const b of city.blocks) {

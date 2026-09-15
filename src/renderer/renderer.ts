@@ -203,7 +203,7 @@ export class Renderer {
     this.units = new SpriteBatch(gl, 4200);
     this.units.topRatio = 78 / CELL;
     this.units.botRatio = (CELL - 78) / CELL;
-    this.units.minPx = 4.2;
+    this.units.minPx = 6.0;
     this.units.texture = this.makeTexture(gl, this.atlas.unitCanvas, UNIT_ATLAS);
 
     this.groundSprites = new SpriteBatch(gl, 4200);
@@ -419,10 +419,10 @@ export class Renderer {
       const col = cell % UNIT_COLS, row = (cell / UNIT_COLS) | 0;
       const u0 = mirror ? (col + 1) * cellUV : col * cellUV;
       const du = mirror ? -cellUV : cellUV;
-      const heightScale = HUMAN_HEIGHT / 9.2;
+      const heightScale = HUMAN_HEIGHT / 10.4;
       let tint = 1;
       if (h.anim.name === 'hit') tint = 1.25;
-      b.push(h.x, h.y, UNIT_SWU * heightScale, u0, row * cellUV, du, cellUV, tint, tint, tint, 1, 3.4, 0);
+      b.push(h.x, h.y, UNIT_SWU * heightScale, u0, row * cellUV, du, cellUV, tint, tint, tint, 1, 6.0, 0);
     }
 
     const zombies = world.zombies;
@@ -438,14 +438,14 @@ export class Renderer {
       const col = cell % UNIT_COLS, row = (cell / UNIT_COLS) | 0;
       const u0 = mirror ? (col + 1) * cellUV : col * cellUV;
       const du = mirror ? -cellUV : cellUV;
-      const hs = (z.cls === 'brute' ? BRUTE_HEIGHT : ZOMBIE_HEIGHT) / 9.2;
+      const hs = (z.cls === 'brute' ? BRUTE_HEIGHT : ZOMBIE_HEIGHT) / 10.4;
       let r = 1, g = 1, bl = 1;
       if (z.hitFlash > 0) { r = 1.5; g = 1.15; bl = 1.1; }
       else {
         const v = 0.92 + z.seed * 0.16;
         r = v; g = v; bl = v;
       }
-      b.push(z.x, z.y, UNIT_SWU * hs, u0, row * cellUV, du, cellUV, r, g, bl, 1, 3.6, 0.02);
+      b.push(z.x, z.y, UNIT_SWU * hs, u0, row * cellUV, du, cellUV, r, g, bl, 1, 5.2, 0.02);
     }
   }
 

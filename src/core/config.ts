@@ -19,9 +19,9 @@ export const PITCH = 0.70;
 export const ZSCALE = 0.72;
 
 /** 1 world unit ~ 0.25 m, so an adult is ~7 units tall. */
-export const HUMAN_HEIGHT = 9.2;
-export const ZOMBIE_HEIGHT = 9.0;
-export const BRUTE_HEIGHT = 11.2;
+export const HUMAN_HEIGHT = 10.4;
+export const ZOMBIE_HEIGHT = 10.2;
+export const BRUTE_HEIGHT = 12.6;
 
 export const MISSION_SECONDS = 13 * 60;
 
