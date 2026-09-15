@@ -1,0 +1,14 @@
+import puppeteer from 'puppeteer-core';
+import { EDGE } from './serve.mjs';
+const browser = await puppeteer.launch({ executablePath: EDGE, headless: true, args: ['--no-sandbox', '--enable-unsafe-swiftshader'] });
+const page = await browser.newPage();
+await page.setViewport({ width: 1280, height: 720 });
+const errs = [];
+page.on('pageerror', (e) => errs.push(e.message));
+page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
+await page.goto(process.argv[2], { waitUntil: 'load' });
+await page.waitForFunction('window.__CITYLINE__ && window.__CITYLINE__.ready()', { timeout: 60000 });
+await page.click('#btn-start');
+await page.evaluate(() => window.__CITYLINE__.step(20));
+console.log('dev-server ok', JSON.stringify(await page.evaluate(() => window.__CITYLINE__.snapshot())), 'errors', JSON.stringify(errs));
+await browser.close();

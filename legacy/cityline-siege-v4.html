@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#111315" />
+<title>CITYLINE · 尸潮围城 V4 · MINIATURE</title>
+<style>
+  :root{
+    --bg:#0c0f10;--panel:rgba(14,17,18,.84);--panel2:rgba(27,30,31,.70);--line:rgba(255,255,255,.105);
+    --text:#edf0ee;--muted:#969c99;--dim:#69706d;--danger:#b9635d;--warn:#b49b6f;--ok:#8f9a96;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:Inter,"SF Pro Display","PingFang SC","Microsoft YaHei",system-ui,sans-serif;user-select:none;-webkit-user-select:none}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  button:focus-visible{outline:2px solid rgba(255,255,255,.7);outline-offset:2px}
+  #gl,#overlay{position:fixed;inset:0;width:100%;height:100%;display:block}
+  #gl{background:#17191b}
+  #overlay{z-index:2;touch-action:none;cursor:crosshair}
+  #ui{position:fixed;inset:0;z-index:3;pointer-events:none}
+  #ui button,.interactive{pointer-events:auto}
+  .topbar{position:absolute;left:18px;right:18px;top:14px;height:48px;display:flex;align-items:center;gap:10px}
+  .brand{height:42px;display:flex;align-items:center;gap:10px;padding:0 13px;background:rgba(17,19,21,.78);border:1px solid var(--line);backdrop-filter:blur(14px);border-radius:10px}
+  .mark{width:21px;height:21px;border:1px solid rgba(255,255,255,.32);border-radius:50%;position:relative}
+  .mark:before,.mark:after{content:"";position:absolute;background:#dadcd9}
+  .mark:before{width:1px;height:13px;left:10px;top:3px}.mark:after{height:1px;width:13px;top:10px;left:3px}
+  .brand b{font-size:12px;letter-spacing:2.3px;font-weight:650}.brand small{font-size:8px;color:var(--dim);letter-spacing:1.8px;display:block;margin-top:2px}
+  .stats{display:flex;align-items:stretch;gap:1px;height:42px;background:rgba(17,19,21,.78);border:1px solid var(--line);backdrop-filter:blur(14px);border-radius:10px;overflow:hidden}
+  .stat{min-width:102px;padding:7px 13px;border-right:1px solid rgba(255,255,255,.07)}.stat:last-child{border-right:0}.stat label{display:block;font-size:8px;letter-spacing:1.2px;color:var(--dim);margin-bottom:2px}.stat strong{font-size:14px;font-weight:550;font-variant-numeric:tabular-nums}.stat.danger strong{color:#dbc1bd}
+  .top-right{margin-left:auto;height:42px;display:flex;align-items:center;gap:7px}
+  .chip{height:42px;padding:0 12px;display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:rgba(17,19,21,.78);backdrop-filter:blur(14px);border-radius:10px;font-size:10px;color:#c9ccca}
+  .chip:hover{background:rgba(40,42,44,.82)}
+  .chip b{font-weight:600;color:#f0f1ef}.chip .key{font-size:8px;color:#7d817f;border:1px solid rgba(255,255,255,.1);border-radius:4px;padding:2px 4px}
+  .districts{position:absolute;top:75px;left:50%;transform:translateX(-50%);display:flex;gap:6px;max-width:70vw;flex-wrap:wrap;justify-content:center}
+  .district{font-size:9px;letter-spacing:.4px;padding:6px 9px;border:1px solid rgba(255,255,255,.08);background:rgba(17,19,21,.64);backdrop-filter:blur(8px);border-radius:999px;color:#aeb1af;transition:.2s}
+  .district.contested{color:#d3bd99;border-color:rgba(197,166,111,.35)}.district.overrun{color:#d0aaa6;border-color:rgba(212,111,103,.34);background:rgba(50,24,24,.56)}
+  .toast{position:absolute;top:126px;left:50%;transform:translate(-50%,-8px);padding:10px 14px;border:1px solid rgba(255,255,255,.11);background:rgba(17,19,21,.82);backdrop-filter:blur(13px);border-radius:9px;opacity:0;transition:.25s;min-width:260px;text-align:center;font-size:11px;color:#d8dad8}
+  .toast.show{opacity:1;transform:translate(-50%,0)}.toast small{display:block;margin-top:4px;color:#818582;font-size:9px;letter-spacing:.6px}
+  .left-info{position:absolute;left:18px;bottom:18px;width:230px;padding:13px 14px;background:rgba(17,19,21,.76);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:11px}
+  .left-info .title{font-size:9px;letter-spacing:1.4px;color:#8e9290;margin-bottom:8px}.left-info .row{display:flex;justify-content:space-between;font-size:10px;color:#b5b8b6;line-height:1.8}.left-info .row span:last-child{color:#727674}.left-info .tip{font-size:9px;color:#777b79;line-height:1.6;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.07)}
+  .toolbar{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);display:flex;align-items:center;gap:5px;padding:6px;background:rgba(17,19,21,.9);backdrop-filter:blur(15px);border:1px solid var(--line);border-radius:13px;box-shadow:0 16px 50px rgba(0,0,0,.22)}
+  .mode{height:42px;min-width:93px;padding:0 11px;border-radius:8px;text-align:left;display:flex;align-items:center;gap:9px;color:#aeb1af}
+  .mode:hover{background:rgba(255,255,255,.06)}.mode.active{background:#e7e8e5;color:#151718}.mode .n{width:18px;height:18px;border:1px solid currentColor;border-radius:5px;display:grid;place-items:center;font-size:8px;opacity:.7}.mode .copy b{font-size:10px;font-weight:600;display:block}.mode .copy small{font-size:8px;opacity:.57;display:block;margin-top:2px}.sep{width:1px;height:25px;background:rgba(255,255,255,.09);margin:0 3px}
+  .selection{position:absolute;right:18px;bottom:18px;width:235px;padding:13px 14px;border:1px solid var(--line);background:rgba(17,19,21,.8);backdrop-filter:blur(12px);border-radius:11px}
+  .selection .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}.selection .head b{font-size:11px;font-weight:600}.selection .head span{font-size:9px;color:#777b79}.selection .bar{height:3px;background:rgba(255,255,255,.08);overflow:hidden}.selection .bar i{height:100%;display:block;background:#c8cbc7;width:0%}.selection .grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px;margin-top:9px}.selection .grid div{font-size:9px;color:#777b79}.selection .grid strong{font-weight:500;color:#cdd0cd;font-variant-numeric:tabular-nums;margin-left:4px}
+  .pause-badge{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);padding:13px 19px;background:rgba(15,17,19,.84);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.13);border-radius:10px;font-size:11px;letter-spacing:3px;display:none}.pause-badge small{display:block;text-align:center;font-size:8px;letter-spacing:.8px;color:#777b79;margin-top:5px}
+  .overlay-screen{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:rgba(8,10,12,.58);backdrop-filter:blur(6px);pointer-events:auto}.overlay-screen.hidden{display:none}
+  .modal{width:600px;max-width:calc(100vw - 34px);padding:34px;border:1px solid rgba(255,255,255,.13);background:rgba(23,25,27,.94);border-radius:17px;box-shadow:0 35px 120px rgba(0,0,0,.36)}
+  .kicker{font-size:9px;letter-spacing:3px;color:#7e8280}.modal h1{font-size:35px;letter-spacing:1px;font-weight:500;margin:13px 0 10px}.modal p{font-size:12px;color:#a8acab;line-height:1.85;margin:0}.brief{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:24px 0;padding:20px 0;border-top:1px solid rgba(255,255,255,.08);border-bottom:1px solid rgba(255,255,255,.08)}.brief div{font-size:10px;color:#888c8a;line-height:1.7}.brief b{display:block;color:#d8dad8;font-weight:550;font-size:11px;margin-bottom:3px}.start{height:46px;width:100%;border-radius:10px;background:#eceeeb;color:#141618;font-size:11px;font-weight:650;letter-spacing:1.3px}.start:hover{background:#fff}
+  #error{display:none;position:fixed;inset:0;z-index:50;place-items:center;background:#111315;color:#ddd;padding:32px;text-align:center}
+  @media(max-width:900px){.stats .stat:nth-child(4){display:none}.stat{min-width:80px}.districts{display:none}.left-info{display:none}.selection{right:10px;bottom:77px;width:210px}.toolbar{bottom:12px;max-width:calc(100vw - 20px);overflow:auto}.mode{min-width:73px}.mode .copy small{display:none}.topbar{left:10px;right:10px}.brand{display:none}.top-right .chip:nth-child(1),.top-right .chip:nth-child(2){display:none}}
+
+  .threatbar{position:absolute;top:70px;left:50%;transform:translateX(-50%);display:flex;gap:4px;padding:4px;background:rgba(10,13,14,.72);border:1px solid var(--line);backdrop-filter:blur(12px);border-radius:999px;pointer-events:auto}
+  .threatbar span{min-width:72px;text-align:center;padding:5px 9px;border-radius:999px;font-size:8px;letter-spacing:.8px;color:#909693;transition:.2s}
+  .threatbar span.hot{background:rgba(122,64,59,.28);color:#d9aaa5}
+  .threatbar span.critical{background:rgba(154,67,58,.42);color:#f0c1bb}
+  .districts{display:none}
+  .composition{margin-top:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.07);font-size:8px;letter-spacing:.45px;color:#7f8582;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .topbar{z-index:5}.toolbar{z-index:5}.selection{z-index:5}.left-info{z-index:4}
+  @media(max-width:900px){.threatbar{top:66px}.threatbar span{min-width:54px;padding:5px 5px}.selection{bottom:74px}.composition{display:none}}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="overlay"></canvas>
+<div id="ui">
+  <div class="topbar">
+    <div class="brand"><div class="mark"></div><div><b>CITYLINE</b><small>尸潮围城 / V4 MINIATURE</small></div></div>
+    <div class="stats">
+      <div class="stat"><label>守军</label><strong id="human-count">0</strong></div>
+      <div class="stat danger"><label>感染体</label><strong id="zombie-count">0</strong></div>
+      <div class="stat"><label>伤亡</label><strong id="loss-count">0</strong></div>
+      <div class="stat"><label>核心区</label><strong id="core-hp">100%</strong></div>
+      <div class="stat"><label>坚持</label><strong id="timer">06:00</strong></div>
+    </div>
+    <div class="top-right">
+      <button class="chip" id="home-btn"><span>全城视角</span><span class="key">H</span></button>
+      <button class="chip" id="pause-btn"><span id="pause-copy">暂停</span><span class="key">SPACE</span></button>
+      <button class="chip" id="reinforce-btn"><b id="reinforce-count">3</b><span>增援</span><span class="key">B</span></button>
+    </div>
+  </div>
+  <div class="threatbar interactive"><span id="th-n">北 · 0</span><span id="th-e">东 · 0</span><span id="th-s">南 · 0</span><span id="th-w">西 · 0</span></div><div class="districts" id="districts"></div>
+  <div class="toast" id="toast"></div>
+  <div class="left-info">
+    <div class="title">CAMERA / 45° 战争沙盘</div>
+    <div class="row"><span>平移</span><span>右键拖动 / WASD</span></div>
+    <div class="row"><span>缩放</span><span>滚轮</span></div>
+    <div class="row"><span>旋转</span><span>Q / E（保持俯角）</span></div>
+    <div class="row"><span>全城</span><span>H</span></div>
+    <div class="tip">框选一批守军，直接在街道上拖出战线。守军数量压到 100+，换取更清晰的人形、武器、动作和建筑体积。</div>
+  </div>
+  <div class="toolbar" id="toolbar">
+    <button class="mode active" data-mode="select"><span class="n">1</span><span class="copy"><b>选择</b><small>框选守军</small></span></button>
+    <button class="mode" data-mode="defend"><span class="n">2</span><span class="copy"><b>防线</b><small>拖线展开</small></span></button>
+    <button class="mode" data-mode="advance"><span class="n">3</span><span class="copy"><b>推进</b><small>移动交战</small></span></button>
+    <button class="mode" data-mode="retreat"><span class="n">4</span><span class="copy"><b>撤退</b><small>强行移动</small></span></button>
+    <div class="sep"></div>
+    <button class="mode" id="all-btn"><span class="n">X</span><span class="copy"><b>全军</b><small>选择全部</small></span></button>
+  </div>
+  <div class="selection">
+    <div class="head"><b id="sel-title">未选择部队</b><span id="sel-order">—</span></div>
+    <div class="bar"><i id="morale-bar"></i></div>
+    <div class="grid"><div>人数<strong id="sel-count">0</strong></div><div>平均士气<strong id="sel-morale">—</strong></div><div>健康<strong id="sel-health">—</strong></div><div>视角<strong id="cam-state">100%</strong></div></div><div class="composition" id="sel-comp">步枪 0 · 霰弹 0 · 机枪 0 · 医疗 0</div>
+  </div>
+  <div class="pause-badge" id="pause-badge">战术暂停<small>仍可下达命令</small></div>
+</div>
+<div class="overlay-screen" id="intro">
+  <div class="modal">
+    <div class="kicker">CITYLINE / 45° 俯视 · 大规模 2D 战争沙盘</div>
+    <h1>这次先把“人”和“城”做清楚，再谈数量。</h1>
+    <p>初始约 128 名守军，面对从四面逐步压进来的尸潮。每名守军都有明确的人形轮廓、武器和兵种辨识；城市建筑改为真正有高度、屋顶和立面的 2.5D 体块。拉远看整座城市，拉近看一个街口的人如何移动、射击、受伤和撤退。</p>
+    <div class="brief">
+      <div><b>少一点守军，清楚一点人物</b>初始约 128 名守军；左键拖框选择，点一个士兵会选中他所在编队，X 选择全军。</div>
+      <div><b>直接画战线</b>按 2 后在街道上拖一条线。守军会分散展开、自动补缺口，而不是堆成一个白色团块。</div>
+      <div><b>真正有体积的城市</b>建筑拥有屋顶、立面、窗格和高度差；固定 45° 俯角下仍可右键拖动、滚轮缩放、Q/E 旋转。</div>
+      <div><b>防线会变形并崩溃</b>死亡、拥挤、近战和侧翼压力都会改变局部战线；低士气人员会自行溃退。</div>
+    </div>
+    <button class="start" id="start-btn">进入战场</button>
+  </div>
+</div>
+<div class="overlay-screen hidden" id="result"><div class="modal"><div class="kicker" id="result-kicker">AFTER ACTION</div><h1 id="result-title">城市守住了</h1><p id="result-copy"></p><div class="brief" id="result-stats"></div><button class="start" id="restart-btn">重新开始</button></div></div>
+<div id="error"></div>
+<script>
+(() => {
+'use strict';
+const glCanvas = document.getElementById('gl');
+const overlay = document.getElementById('overlay');
+const octx = overlay.getContext('2d');
+const ui = id => document.getElementById(id);
+const gl = glCanvas.getContext('webgl2', {alpha:false, antialias:true, powerPreference:'high-performance'});
+if(!gl){ui('error').style.display='grid';ui('error').innerHTML='<div><h2>需要支持 WebGL2 的浏览器</h2><p>建议使用最新版 Chrome / Edge / Safari。</p></div>';return;}
+
+// -------------------------- constants / state --------------------------
+const WORLD_W = 5400, WORLD_H = 4000, NAV = 32, PITCH = .70;
+const NAV_W = Math.ceil(WORLD_W/NAV), NAV_H = Math.ceil(WORLD_H/NAV), NAV_N = NAV_W*NAV_H;
+const HASH = 88, HASH_W = Math.ceil(WORLD_W/HASH), HASH_H = Math.ceil(WORLD_H/HASH);
+const MAX_UNITS = 14000, UNIT_STRIDE = 9, TAU = Math.PI*2;
+const MELEE = 15;
+const humanColors = [[.46,.55,.53],[.55,.50,.42],[.38,.46,.49],[.52,.60,.54]];
+const zombieColors = [[.40,.31,.25],[.48,.38,.27],[.30,.22,.19]];
+const HUMAN_STATS = [
+ {name:'步枪',range:172,cool:.48,dmg:[28,40],speed:54,kind:0},
+ {name:'霰弹',range:96,cool:.82,dmg:[52,72],speed:52,kind:4},
+ {name:'机枪',range:190,cool:.19,dmg:[13,21],speed:45,kind:5},
+ {name:'医疗',range:150,cool:.58,dmg:[21,31],speed:57,kind:6}
+];
+const state = {
+  started:false, paused:false, ended:false, speed:1, time:0, duration:420, core:100,
+  humanLosses:0, zombieKills:0, reinforce:3, nextSurge:28, toastUntil:0,
+  mode:'select', selectedCount:0, orderSerial:0, lastDistrictCheck:0, threat:[0,0,0,0]
+};
+let cam = {x:WORLD_W/2,y:WORLD_H/2,zoom:.3,rot:Math.PI/4};
+let DPR=1, W=innerWidth, H=innerHeight;
+let mapTexture=null, cityCanvas=null, buildings=[], parks=[], roadsX=[], roadsY=[], districts=[];
+let buildingVAO=null, buildingBuffer=null, buildingVertexCount=0;
+let navBlocked = new Uint8Array(NAV_N), flow = new Int32Array(NAV_N), flowDx = new Int8Array(NAV_N), flowDy = new Int8Array(NAV_N);
+let humans=[], zombies=[], corpses=[], effects=[];
+let hHead = new Int32Array(HASH_W*HASH_H), zHead = new Int32Array(HASH_W*HASH_H);
+let keys = new Set();
+let pointer = {down:false,button:0,x:0,y:0,sx:0,sy:0,wx:0,wy:0,dragging:false,modeAtDown:'select'};
+let commandPreview = null, recentOrders=[];
+let lastFrame=performance.now(), accumulator=0, uiClock=0, fpsClock=0, fpsFrames=0, fps=60;
+
+// deterministic random
+let seed = 0x4c415354;
+function rnd(){ seed = (seed*1664525 + 1013904223) >>> 0; return seed/4294967296; }
+function range(a,b){return a+(b-a)*rnd()}
+function clamp(v,a,b){return v<a?a:v>b?b:v}
+function hypot(x,y){return Math.hypot(x,y)}
+function lerp(a,b,t){return a+(b-a)*t}
+function hexToRgb(h){h=h.replace('#','');return [parseInt(h.slice(0,2),16)/255,parseInt(h.slice(2,4),16)/255,parseInt(h.slice(4,6),16)/255]}
+
+// -------------------------- WebGL programs --------------------------
+function shader(type, src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw new Error(gl.getShaderInfoLog(s));return s}
+function program(vs,fs){const p=gl.createProgram();gl.attachShader(p,shader(gl.VERTEX_SHADER,vs));gl.attachShader(p,shader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw new Error(gl.getProgramInfoLog(p));return p}
+const worldVS = `#version 300 es
+precision highp float;
+in vec2 aPos; in vec2 aUV;
+uniform vec2 uRes,uCam; uniform float uZoom,uRot,uPitch;
+out vec2 vUV;
+void main(){vec2 d=aPos-uCam;float c=cos(-uRot),s=sin(-uRot);vec2 r=vec2(d.x*c-d.y*s,d.x*s+d.y*c);r.y*=uPitch;vec2 sp=r*uZoom+uRes*.5;vec2 clip=vec2(sp.x/uRes.x*2.0-1.0,1.0-sp.y/uRes.y*2.0);gl_Position=vec4(clip,0,1);vUV=aUV;}`;
+const worldFS = `#version 300 es
+precision highp float; in vec2 vUV; uniform sampler2D uTex; out vec4 outColor;
+void main(){outColor=texture(uTex,vUV);}`;
+const unitVS = `#version 300 es
+precision highp float;
+in vec2 aPos; in float aSize; in float aAngle; in float aKind; in float aSelected; in vec3 aColor;
+uniform vec2 uRes,uCam; uniform float uZoom,uRot,uPitch,uDpr,uTime;
+out float vAngle; flat out int vKind; out float vSelected; out vec3 vColor; out float vGait;
+void main(){vec2 d=aPos-uCam;float c=cos(-uRot),s=sin(-uRot);vec2 r=vec2(d.x*c-d.y*s,d.x*s+d.y*c);r.y*=uPitch;vec2 sp=r*uZoom+uRes*.5;vec2 clip=vec2(sp.x/uRes.x*2.0-1.0,1.0-sp.y/uRes.y*2.0);gl_Position=vec4(clip,0,1);bool human=(int(aKind+.5)==0||int(aKind+.5)==4||int(aKind+.5)==5||int(aKind+.5)==6);float minPx=(human?8.8:7.2)*uDpr;gl_PointSize=clamp(max(minPx,aSize*(.62+uZoom*.88)),minPx,40.0*uDpr);vAngle=aAngle-uRot;vKind=int(aKind+.5);vSelected=aSelected;vColor=aColor;vGait=sin(uTime*8.0+aPos.x*.031+aPos.y*.023)*.11;}`;
+const unitFS = `#version 300 es
+precision highp float;
+in float vAngle; flat in int vKind; in float vSelected; in vec3 vColor; in float vGait; out vec4 outColor;
+float ellipse(vec2 p,vec2 r){return 1.0-smoothstep(.82,1.0,length(p/r));}
+float box(vec2 p,vec2 b){vec2 d=abs(p)-b;return 1.0-smoothstep(.0,.075,max(d.x,d.y));}
+float capsule(vec2 p,vec2 a,vec2 b,float r){vec2 pa=p-a,ba=b-a;float h=clamp(dot(pa,ba)/dot(ba,ba),0.0,1.0);return 1.0-smoothstep(r*.76,r,length(pa-ba*h));}
+void paint(inout float a,inout vec3 col,float shape,vec3 c){if(shape>a*.72){col=mix(col,c,clamp(shape,0.0,1.0));}a=max(a,shape);}
+void main(){vec2 p=gl_PointCoord*2.0-1.0;float c=cos(-vAngle),s=sin(-vAngle);vec2 q=vec2(p.x*c-p.y*s,p.x*s+p.y*c);vec3 col=vColor;float a=0.0;
+ float sh=ellipse(p-vec2(.08,.61),vec2(.58,.19))*.28;paint(a,col,sh,vec3(.045,.05,.05));
+ bool human=(vKind==0||vKind==4||vKind==5||vKind==6);
+ if(human){
+   float legL=capsule(q,vec2(-.12,.27+vGait),vec2(-.17,.78+vGait),.095);
+   float legR=capsule(q,vec2(.12,.27-vGait),vec2(.17,.78-vGait),.095);
+   paint(a,col,max(legL,legR),vColor*.56);
+   float boots=max(ellipse(q-vec2(-.17,.78+vGait),vec2(.15,.075)),ellipse(q-vec2(.17,.78-vGait),vec2(.15,.075)));
+   paint(a,col,boots,vec3(.09,.10,.095));
+   float torso=ellipse(q-vec2(0,.02),vec2(.29,.40));paint(a,col,torso,vColor);
+   float vest=ellipse(q-vec2(0,.03),vec2(.245,.31));paint(a,col,vest,mix(vColor,vec3(.17,.19,.18),.42));
+   float pack=box(q-vec2(-.22,.03),vec2(.10,.22));paint(a,col,pack,vec3(.16,.18,.17));
+   float armL=capsule(q,vec2(-.19,-.12),vec2(.26,.02),.075);float armR=capsule(q,vec2(.18,-.10),vec2(.39,-.05),.07);paint(a,col,max(armL,armR),vColor*.82);
+   float gunLen=vKind==5?.48:(vKind==4?.38:.42);float gun=box(q-vec2(.40,-.055),vec2(gunLen,.050));paint(a,col,gun,vec3(.075,.085,.08));
+   if(vKind==5){float mag=box(q-vec2(.32,.03),vec2(.075,.11));paint(a,col,mag,vec3(.07,.08,.075));}
+   float neck=box(q-vec2(0,-.36),vec2(.07,.08));paint(a,col,neck,vec3(.58,.47,.39));
+   float head=ellipse(q-vec2(0,-.54),vec2(.185,.19));paint(a,col,head,vec3(.66,.55,.46));
+   float helmet=ellipse(q-vec2(0,-.60),vec2(.215,.145));paint(a,col,helmet,mix(vColor,vec3(.12,.14,.13),.35));
+   float brim=box(q-vec2(.08,-.545),vec2(.20,.035));paint(a,col,brim,mix(vColor,vec3(.10),.45));
+   if(vKind==6){float cross1=box(q-vec2(0,.02),vec2(.045,.12));float cross2=box(q-vec2(0,.02),vec2(.12,.045));paint(a,col,max(cross1,cross2),vec3(.72,.82,.76));}
+   if(vKind==4){float shell=box(q-vec2(.10,.14),vec2(.08,.11));paint(a,col,shell,vec3(.50,.39,.27));}
+ }
+ else if(vKind==1||vKind==2||vKind==3){
+   bool isBrute=vKind==3;bool isRunner=vKind==2;float lean=isRunner?.12:0.0;
+   float leg1=capsule(q,vec2(-.12,.26),vec2(-.20,.76+vGait),isBrute?.14:.10);float leg2=capsule(q,vec2(.10,.26),vec2(.24,.73-vGait),isBrute?.14:.10);paint(a,col,max(leg1,leg2),vColor*.54);
+   float torso=ellipse(q-vec2(lean,.02),vec2(isBrute?.44:(isRunner?.27:.34),isBrute?.45:.40));paint(a,col,torso,vColor);
+   float shoulder=capsule(q,vec2(-.24,-.11),vec2(.24,-.08),isBrute?.14:.095);paint(a,col,shoulder,vColor*.82);
+   float arm1=capsule(q,vec2(-.18,-.10),vec2(-.52,-.02),isBrute?.105:.075);float arm2=capsule(q,vec2(.17,-.10),vec2(.54,.03),isBrute?.105:.075);paint(a,col,max(arm1,arm2),vColor*.72);
+   float head=ellipse(q-vec2(.08+lean,-.50),vec2(isBrute?.24:.18,isBrute?.23:.19));paint(a,col,head,mix(vColor,vec3(.48,.43,.34),.44));
+   float wound=ellipse(q-vec2(-.07,.03),vec2(.08,.12));paint(a,col,wound,vec3(.24,.10,.09));
+ }
+ else {float corpseShape=ellipse(q,vec2(.75,.20))*.72;paint(a,col,corpseShape,col*.58);}
+ if(vSelected>.5&&human){float d=length(p);float ring=(1.0-smoothstep(.98,1.0,d))*smoothstep(.78,.84,d);paint(a,col,ring,vec3(.96,.98,.97));}
+ if(a<.025)discard;outColor=vec4(col,a);}`;
+
+const buildingVS = `#version 300 es
+precision highp float;
+in vec3 aPos; in vec3 aColor; in vec2 aUV; in float aFace;
+uniform vec2 uRes,uCam; uniform float uZoom,uRot,uPitch;
+out vec3 vColor; out vec2 vUV; flat out int vFace;
+void main(){vec2 d=aPos.xy-uCam;float c=cos(-uRot),s=sin(-uRot);vec2 r=vec2(d.x*c-d.y*s,d.x*s+d.y*c);vec2 sp=vec2(r.x,r.y*uPitch-aPos.z*.92)*uZoom+uRes*.5;vec2 clip=vec2(sp.x/uRes.x*2.0-1.0,1.0-sp.y/uRes.y*2.0);float dep=clamp((r.y-aPos.z*.18)/9000.0,-.92,.92);gl_Position=vec4(clip,dep,1);vColor=aColor;vUV=aUV;vFace=int(aFace+.5);}`;
+const buildingFS = `#version 300 es
+precision highp float;
+in vec3 vColor; in vec2 vUV; flat in int vFace; out vec4 outColor;
+void main(){vec3 c=vColor;if(vFace==1){vec2 f=fract(vUV);float wx=smoothstep(.10,.16,f.x)*(1.0-smoothstep(.70,.78,f.x));float wy=smoothstep(.16,.23,f.y)*(1.0-smoothstep(.66,.73,f.y));float win=wx*wy;float band=step(.94,fract(vUV.y*.5));c=mix(c,vec3(.20,.24,.245),win*.58);c*=1.0-band*.07;}else{float grid=(step(.94,fract(vUV.x*.55))+step(.94,fract(vUV.y*.55)))*.025;c+=grid;}outColor=vec4(c,1);}`;
+const bgProg=program(worldVS,worldFS), unitProg=program(unitVS,unitFS), buildingProg=program(buildingVS,buildingFS);
+
+const bgVAO=gl.createVertexArray(), bgBuffer=gl.createBuffer();
+gl.bindVertexArray(bgVAO);gl.bindBuffer(gl.ARRAY_BUFFER,bgBuffer);
+const bgVerts=new Float32Array([0,0,0,0, WORLD_W,0,1,0, 0,WORLD_H,0,1, 0,WORLD_H,0,1, WORLD_W,0,1,0, WORLD_W,WORLD_H,1,1]);
+gl.bufferData(gl.ARRAY_BUFFER,bgVerts,gl.STATIC_DRAW);
+let loc=gl.getAttribLocation(bgProg,'aPos');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,16,0);
+loc=gl.getAttribLocation(bgProg,'aUV');gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,2,gl.FLOAT,false,16,8);
+
+const unitVAO=gl.createVertexArray(), unitBuffer=gl.createBuffer(), unitData=new Float32Array(MAX_UNITS*UNIT_STRIDE);
+gl.bindVertexArray(unitVAO);gl.bindBuffer(gl.ARRAY_BUFFER,unitBuffer);gl.bufferData(gl.ARRAY_BUFFER,unitData.byteLength,gl.DYNAMIC_DRAW);
+const attrs=[['aPos',2,0],['aSize',1,8],['aAngle',1,12],['aKind',1,16],['aSelected',1,20],['aColor',3,24]];
+for(const [name,size,off] of attrs){let l=gl.getAttribLocation(unitProg,name);gl.enableVertexAttribArray(l);gl.vertexAttribPointer(l,size,gl.FLOAT,false,36,off)}
+gl.bindVertexArray(null);
+
+function shadeRgb(c,f){return [clamp(c[0]*f,0,1),clamp(c[1]*f,0,1),clamp(c[2]*f,0,1)]}
+function buildBuildingMesh(){
+ const data=[];const push=(p,c,uv,face)=>data.push(p[0],p[1],p[2],c[0],c[1],c[2],uv[0],uv[1],face);
+ const quad=(p0,p1,p2,p3,c,uvs,face)=>{push(p0,c,uvs[0],face);push(p1,c,uvs[1],face);push(p2,c,uvs[2],face);push(p0,c,uvs[0],face);push(p2,c,uvs[2],face);push(p3,c,uvs[3],face)};
+ function box(x,y,w,h,z0,z1,roof,wall){const r=hexToRgb(roof),wb=hexToRgb(wall),u=w/42,v=h/42,zh=(z1-z0)/27;
+   quad([x,y,z1],[x+w,y,z1],[x+w,y+h,z1],[x,y+h,z1],shadeRgb(r,1.03),[[0,0],[u,0],[u,v],[0,v]],0);
+   quad([x,y,z0],[x+w,y,z0],[x+w,y,z1],[x,y,z1],shadeRgb(wb,.76),[[0,0],[u,0],[u,zh],[0,zh]],1);
+   quad([x+w,y,z0],[x+w,y+h,z0],[x+w,y+h,z1],[x+w,y,z1],shadeRgb(wb,.60),[[0,0],[v,0],[v,zh],[0,zh]],1);
+   quad([x+w,y+h,z0],[x,y+h,z0],[x,y+h,z1],[x+w,y+h,z1],shadeRgb(wb,.70),[[0,0],[u,0],[u,zh],[0,zh]],1);
+   quad([x,y+h,z0],[x,y,z0],[x,y,z1],[x,y+h,z1],shadeRgb(wb,.86),[[0,0],[v,0],[v,zh],[0,zh]],1);
+ }
+ for(const b of buildings){box(b.x,b.y,b.w,b.h,0,b.height,b.roof,b.wall);if(b.detail){const dw=Math.min(90,b.w*.28),dh=Math.min(74,b.h*.25),dx=b.x+b.w*.5-dw*.5,dy=b.y+b.h*.5-dh*.5;box(dx,dy,dw,dh,b.height,b.height+Math.min(22,b.height*.22),'#777d79','#545b59')}}
+ const arr=new Float32Array(data);buildingVertexCount=arr.length/9;buildingVAO=gl.createVertexArray();buildingBuffer=gl.createBuffer();gl.bindVertexArray(buildingVAO);gl.bindBuffer(gl.ARRAY_BUFFER,buildingBuffer);gl.bufferData(gl.ARRAY_BUFFER,arr,gl.STATIC_DRAW);
+ const spec=[['aPos',3,0],['aColor',3,12],['aUV',2,24],['aFace',1,32]];for(const [name,size,off] of spec){const l=gl.getAttribLocation(buildingProg,name);gl.enableVertexAttribArray(l);gl.vertexAttribPointer(l,size,gl.FLOAT,false,36,off)}gl.bindVertexArray(null);
+}
+
+gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+
+function setWorldUniforms(p){
+ gl.uniform2f(gl.getUniformLocation(p,'uRes'),W*DPR,H*DPR);gl.uniform2f(gl.getUniformLocation(p,'uCam'),cam.x,cam.y);
+ gl.uniform1f(gl.getUniformLocation(p,'uZoom'),cam.zoom*DPR);gl.uniform1f(gl.getUniformLocation(p,'uRot'),cam.rot);
+ const lp=gl.getUniformLocation(p,'uPitch');if(lp)gl.uniform1f(lp,PITCH);const ld=gl.getUniformLocation(p,'uDpr');if(ld)gl.uniform1f(ld,DPR);
+}
+
+// -------------------------- city generation --------------------------
+function buildCity(){
+  const c=document.createElement('canvas');c.width=WORLD_W;c.height=WORLD_H;const g=c.getContext('2d');
+  g.fillStyle='#59615f';g.fillRect(0,0,WORLD_W,WORLD_H);
+  districts=[
+   {name:'北岸住宅',x:0,y:0,w:1800,h:1000,status:'safe'},{name:'北部商业',x:1800,y:0,w:1800,h:1000,status:'safe'},{name:'工业北区',x:3600,y:0,w:1800,h:1000,status:'safe'},
+   {name:'旧城西区',x:0,y:1000,w:1350,h:1500,status:'safe'},{name:'大学街区',x:1350,y:1000,w:1350,h:1500,status:'safe'},{name:'中央城区',x:2700,y:1000,w:1350,h:1500,status:'safe'},{name:'医疗东区',x:4050,y:1000,w:1350,h:1500,status:'safe'},
+   {name:'河畔南区',x:0,y:2500,w:1800,h:1500,status:'safe'},{name:'仓储南区',x:1800,y:2500,w:1800,h:1500,status:'safe'},{name:'物流东南',x:3600,y:2500,w:1800,h:1500,status:'safe'}
+  ];
+  const tint=['#5d6663','#59615f','#616765','#5a6260','#5f6763','#59625f','#5b6360','#56605b','#5d6461','#59605e'];
+  districts.forEach((d,i)=>{g.fillStyle=tint[i%tint.length];g.fillRect(d.x,d.y,d.w,d.h)});
+  roadsX=[220,830,1510,2280,3070,3900,4710,5200];roadsY=[180,710,1310,2000,2680,3340,3820];const roadW=118;
+  // muted asphalt + shoulders
+  g.fillStyle='#404749';roadsX.forEach(x=>g.fillRect(x-roadW/2,0,roadW,WORLD_H));roadsY.forEach(y=>g.fillRect(0,y-roadW/2,WORLD_W,roadW));
+  g.fillStyle='#394042';g.fillRect(WORLD_W/2-92,0,184,WORLD_H);g.fillRect(0,WORLD_H/2-92,WORLD_W,184);
+  g.strokeStyle='rgba(225,229,226,.16)';g.lineWidth=4;roadsX.forEach(x=>{g.beginPath();g.moveTo(x-roadW/2-5,0);g.lineTo(x-roadW/2-5,WORLD_H);g.moveTo(x+roadW/2+5,0);g.lineTo(x+roadW/2+5,WORLD_H);g.stroke()});roadsY.forEach(y=>{g.beginPath();g.moveTo(0,y-roadW/2-5);g.lineTo(WORLD_W,y-roadW/2-5);g.moveTo(0,y+roadW/2+5);g.lineTo(WORLD_W,y+roadW/2+5);g.stroke()});
+  g.setLineDash([20,24]);g.strokeStyle='rgba(233,235,229,.10)';g.lineWidth=2;roadsX.forEach(x=>{g.beginPath();g.moveTo(x,0);g.lineTo(x,WORLD_H);g.stroke()});roadsY.forEach(y=>{g.beginPath();g.moveTo(0,y);g.lineTo(WORLD_W,y);g.stroke()});g.setLineDash([]);
+  buildings=[];parks=[];navBlocked.fill(0);
+  const xCuts=[0,...roadsX.map(x=>x-roadW/2-9),...roadsX.map(x=>x+roadW/2+9),WORLD_W].sort((a,b)=>a-b);const yCuts=[0,...roadsY.map(y=>y-roadW/2-9),...roadsY.map(y=>y+roadW/2+9),WORLD_H].sort((a,b)=>a-b);
+  const xSeg=[];for(let i=0;i<xCuts.length-1;i++){const a=xCuts[i],b=xCuts[i+1];if(b-a>170)xSeg.push([a,b])}const ySeg=[];for(let i=0;i<yCuts.length-1;i++){const a=yCuts[i],b=yCuts[i+1];if(b-a>165)ySeg.push([a,b])}
+  let bi=0;
+  for(const xs of xSeg)for(const ys of ySeg){let x=xs[0]+24,y=ys[0]+24,w=xs[1]-xs[0]-48,h=ys[1]-ys[0]-48;if(w<90||h<90)continue;const cx=x+w/2,cy=y+h/2;const central=Math.abs(cx-WORLD_W/2)<350&&Math.abs(cy-WORLD_H/2)<290;const isPark=!central&&((bi++%13===4)||(cx<1100&&cy>2750)||(cx>4300&&cy>1120&&cy<1820));
+    if(central){g.fillStyle='#6c7471';g.fillRect(x,y,w,h);g.strokeStyle='rgba(255,255,255,.12)';g.strokeRect(x+9,y+9,w-18,h-18);continue}
+    if(isPark){parks.push({x,y,w,h});g.fillStyle='#556555';g.fillRect(x,y,w,h);g.fillStyle='rgba(31,48,35,.48)';for(let t=0;t<Math.min(44,Math.floor(w*h/7200));t++){const tx=range(x+18,x+w-18),ty=range(y+18,y+h-18);g.beginPath();g.arc(tx,ty,range(5,10),0,TAU);g.fill()}continue}
+    const cols=w>470?2:1,rows=h>420?2:1,gap=24;for(let yy=0;yy<rows;yy++)for(let xx=0;xx<cols;xx++){let bw=(w-gap*(cols-1))/cols,bh=(h-gap*(rows-1))/rows;let bx=x+xx*(bw+gap)+range(5,17),by=y+yy*(bh+gap)+range(5,17);bw-=range(17,36);bh-=range(18,38);if(bw<62||bh<62)continue;
+      const big=bw*bh>80000, warehouse=(cy>2600&&rnd()<.48)||(bw>300&&bh<210), tower=!warehouse&&big&&rnd()<.34;const height=warehouse?range(34,54):tower?range(105,154):range(58,96);const roof=warehouse?'#747975':tower?'#858a86':['#747b78','#7d817d','#686f6e','#82827c','#707775','#85857f'][Math.floor(rnd()*6)];const wall=warehouse?'#59605d':tower?'#626b69':'#5f6663';buildings.push({x:bx,y:by,w:bw,h:bh,height,roof,wall,detail:!warehouse&&rnd()<.48});
+      g.fillStyle='rgba(232,234,229,.055)';g.fillRect(bx-8,by-8,bw+16,bh+16);g.fillStyle='rgba(18,21,22,.22)';g.fillRect(bx+14,by+16,bw,bh);g.strokeStyle='rgba(255,255,255,.065)';g.lineWidth=2;g.strokeRect(bx-7.5,by-7.5,bw+15,bh+15);
+    }
+  }
+  // diagonal evacuation artery and rail yard break the grid silhouette
+  g.save();g.lineCap='butt';g.strokeStyle='rgba(20,23,24,.34)';g.lineWidth=118;g.beginPath();g.moveTo(-160,3150);g.lineTo(WORLD_W+160,650);g.stroke();g.strokeStyle='#3b4244';g.lineWidth=86;g.stroke();g.setLineDash([25,25]);g.strokeStyle='rgba(232,235,231,.13)';g.lineWidth=2;g.stroke();g.setLineDash([]);g.restore();
+  g.save();g.strokeStyle='rgba(31,35,35,.56)';g.lineWidth=3;for(let ry=3040;ry<=3150;ry+=24){g.beginPath();g.moveTo(1820,ry);g.lineTo(3560,ry);g.stroke()}g.restore();
+  // civic core
+  const hx=WORLD_W/2,hy=WORLD_H/2;g.fillStyle='#4c5555';g.beginPath();g.arc(hx,hy,175,0,TAU);g.fill();g.strokeStyle='rgba(240,243,240,.27)';g.lineWidth=5;g.beginPath();g.arc(hx,hy,152,0,TAU);g.stroke();g.fillStyle='rgba(220,224,219,.10)';g.fillRect(hx-92,hy-70,184,140);g.strokeStyle='rgba(255,255,255,.17)';g.strokeRect(hx-92,hy-70,184,140);g.fillStyle='#c9ccc7';g.font='600 22px Inter,sans-serif';g.textAlign='center';g.fillText('COMMAND',hx,hy+7);buildings.push({x:hx-82,y:hy-60,w:164,h:120,height:78,roof:'#8a908b',wall:'#626a67',detail:true});
+  const labels=[['HOSPITAL',4430,1560],['POLICE',1060,1720],['STATION',3200,3130],['SCHOOL',1100,640],['WAREHOUSE',4180,3070],['STADIUM',710,3030]];g.font='600 17px Inter,sans-serif';g.fillStyle='rgba(235,237,233,.29)';labels.forEach(([t,x,y])=>g.fillText(t,x,y));
+  g.font='500 25px "PingFang SC",sans-serif';g.fillStyle='rgba(18,22,21,.24)';districts.forEach(d=>g.fillText(d.name,d.x+d.w/2,d.y+80));
+  for(let i=0;i<185;i++){const vertical=rnd()<.5;if(vertical){const x=roadsX[Math.floor(rnd()*roadsX.length)]+range(-31,31),y=range(80,WORLD_H-80);drawCar(g,x,y,vertical)}else{const y=roadsY[Math.floor(rnd()*roadsY.length)]+range(-31,31),x=range(80,WORLD_W-80);drawCar(g,x,y,vertical)}}
+  buildings.forEach(b=>markBlocked(b.x-9,b.y-9,b.w+18,b.h+18));clearBlocked(hx-215,hy-215,430,430);computeFlow(hx,hy);cityCanvas=c;
+}
+function drawCar(g,x,y,v){g.save();g.translate(x,y);if(v)g.rotate(Math.PI/2);g.fillStyle='rgba(43,46,46,.6)';g.fillRect(-15,-7,30,14);g.fillStyle='rgba(172,175,169,.3)';g.fillRect(-8,-6,11,12);g.restore()}
+function markBlocked(x,y,w,h){const x0=clamp(Math.floor(x/NAV),0,NAV_W-1),x1=clamp(Math.ceil((x+w)/NAV),0,NAV_W-1),y0=clamp(Math.floor(y/NAV),0,NAV_H-1),y1=clamp(Math.ceil((y+h)/NAV),0,NAV_H-1);for(let yy=y0;yy<=y1;yy++)for(let xx=x0;xx<=x1;xx++)navBlocked[yy*NAV_W+xx]=1}
+function clearBlocked(x,y,w,h){const x0=clamp(Math.floor(x/NAV),0,NAV_W-1),x1=clamp(Math.ceil((x+w)/NAV),0,NAV_W-1),y0=clamp(Math.floor(y/NAV),0,NAV_H-1),y1=clamp(Math.ceil((y+h)/NAV),0,NAV_H-1);for(let yy=y0;yy<=y1;yy++)for(let xx=x0;xx<=x1;xx++)navBlocked[yy*NAV_W+xx]=0}
+function navId(x,y){const gx=Math.floor(x/NAV),gy=Math.floor(y/NAV);return gx<0||gy<0||gx>=NAV_W||gy>=NAV_H?-1:gy*NAV_W+gx}
+function isOpen(x,y){const id=navId(x,y);return id>=0&&!navBlocked[id]}
+function nearestOpen(x,y){if(isOpen(x,y))return {x:clamp(x,8,WORLD_W-8),y:clamp(y,8,WORLD_H-8)};const gx=Math.floor(x/NAV),gy=Math.floor(y/NAV);for(let r=1;r<9;r++)for(let oy=-r;oy<=r;oy++)for(let ox=-r;ox<=r;ox++){if(Math.abs(ox)!==r&&Math.abs(oy)!==r)continue;const nx=gx+ox,ny=gy+oy;if(nx>=0&&ny>=0&&nx<NAV_W&&ny<NAV_H&&!navBlocked[ny*NAV_W+nx])return{x:(nx+.5)*NAV,y:(ny+.5)*NAV}}return{x:WORLD_W/2,y:WORLD_H/2}}
+function computeFlow(tx,ty){flow.fill(1e9);flowDx.fill(0);flowDy.fill(0);const sx=clamp(Math.floor(tx/NAV),0,NAV_W-1),sy=clamp(Math.floor(ty/NAV),0,NAV_H-1),start=sy*NAV_W+sx;const q=new Int32Array(NAV_N);let h=0,t=0;q[t++]=start;flow[start]=0;const dirs=[[1,0],[-1,0],[0,1],[0,-1]];while(h<t){const id=q[h++],x=id%NAV_W,y=(id/NAV_W)|0,d=flow[id]+1;for(const [dx,dy] of dirs){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=NAV_W||ny>=NAV_H)continue;const ni=ny*NAV_W+nx;if(navBlocked[ni]||flow[ni]<=d)continue;flow[ni]=d;q[t++]=ni}}
+ for(let y=0;y<NAV_H;y++)for(let x=0;x<NAV_W;x++){const id=y*NAV_W+x;if(navBlocked[id]||flow[id]>=1e9)continue;let best=flow[id],bdx=0,bdy=0;for(const [dx,dy] of dirs){const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=NAV_W||ny>=NAV_H)continue;const ni=ny*NAV_W+nx;if(flow[ni]<best){best=flow[ni];bdx=dx;bdy=dy}}flowDx[id]=bdx;flowDy[id]=bdy}}
+function uploadMap(){mapTexture=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,mapTexture);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,cityCanvas)}
+
+// -------------------------- entities --------------------------
+let uid=0;
+function pickHumanType(){const r=rnd();return r<.64?0:r<.79?1:r<.94?2:3}
+function makeHuman(x,y,group=0,type=pickHumanType()){const p=nearestOpen(x,y);return{id:++uid,x:p.x,y:p.y,vx:0,vy:0,hp:100,morale:range(82,100),alive:true,selected:false,targetX:p.x,targetY:p.y,order:'defend',cool:range(0,.9),scan:range(0,.22),target:null,angle:range(0,TAU),group,type,color:humanColors[type],next:-1,lastHit:-10,stuck:0}}
+function makeZombie(x,y,kind=1){const p=nearestOpen(x,y),hp=kind===3?310:kind===2?60:96;return{id:++uid,x:p.x,y:p.y,vx:0,vy:0,hp,maxHp:hp,alive:true,kind,cool:range(0,.8),scan:range(0,.35),target:null,angle:range(0,TAU),speed:kind===3?36:kind===2?92:50,next:-1,color:zombieColors[kind-1],stuck:0}}
+function spawnHumanLine(x1,y1,x2,y2,n,group){const dx=x2-x1,dy=y2-y1,len=Math.max(1,hypot(dx,dy)),ux=dx/len,uy=dy/len,px=-uy,py=ux;const per=Math.max(10,Math.floor(len/17)),rows=Math.ceil(n/per);for(let i=0;i<n;i++){const row=(i/per)|0,col=i%per,t=(col+.5)/Math.min(per,n-row*per),off=(row-(rows-1)/2)*15+range(-2.5,2.5);humans.push(makeHuman(x1+dx*t+px*off+range(-2,2),y1+dy*t+py*off+range(-2,2),group))}}
+function spawnHumanCluster(cx,cy,n,group=0,r=120){for(let i=0;i<n;i++){const a=rnd()*TAU,rr=Math.sqrt(rnd())*r;humans.push(makeHuman(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr,group))}}
+function spawnSide(side,n,intensity=1){const gates=side%2===0?roadsX.slice(0,-1):roadsY.slice(0,-1);for(let i=0;i<n;i++){let x,y;const lane=gates[Math.floor(rnd()*gates.length)];if(side===0){x=lane+range(-34,34);y=range(8,180)}else if(side===1){x=range(WORLD_W-180,WORLD_W-8);y=lane+range(-34,34)}else if(side===2){x=lane+range(-34,34);y=range(WORLD_H-180,WORLD_H-8)}else{x=range(8,180);y=lane+range(-34,34)}let kind=1,r=rnd();if(state.time>55&&r<.19)kind=2;if(state.time>130&&r<.055)kind=3;const z=makeZombie(x,y,kind);z.speed*=range(.88,1.13)*intensity;zombies.push(z)}}
+function initEntities(){uid=0;humans=[];zombies=[];corpses=[];effects=[];recentOrders=[];state.time=0;state.core=100;state.humanLosses=0;state.zombieKills=0;state.reinforce=3;state.nextSurge=28;state.ended=false;state.paused=false;state.selectedCount=0;state.threat=[0,0,0,0];
+ const lines=[
+  [1540,1310,2240,1310,24],[3160,1310,3860,1310,24],
+  [1540,2680,2240,2680,24],[3160,2680,3860,2680,24]
+ ];
+ lines.forEach((a,i)=>spawnHumanLine(a[0],a[1],a[2],a[3],a[4],i));spawnHumanLine(2350,2000,3050,2000,32,8);
+ // 尸潮仍来自四面，但开局不再用数量掩盖画面质量
+ spawnSide(0,245,.92);spawnSide(1,235,.92);spawnSide(2,245,.92);spawnSide(3,235,.92);
+ [[830,710,28],[4710,2000,30],[1510,3340,26],[3900,710,28]].forEach(([cx,cy,n])=>{for(let j=0;j<n;j++){const a=rnd()*TAU,r=Math.sqrt(rnd())*105;zombies.push(makeZombie(cx+Math.cos(a)*r,cy+Math.sin(a)*r,rnd()<.12?2:1))}});
+ for(const u of humans){u.targetX=u.x;u.targetY=u.y}updateDistricts(true);updateThreats();updateUI(true);
+}
+function hashId(x,y){const gx=clamp((x/HASH)|0,0,HASH_W-1),gy=clamp((y/HASH)|0,0,HASH_H-1);return gy*HASH_W+gx}
+function rebuildHash(){hHead.fill(-1);zHead.fill(-1);for(let i=0;i<humans.length;i++){const u=humans[i];if(!u.alive)continue;const h=hashId(u.x,u.y);u.next=hHead[h];hHead[h]=i}for(let i=0;i<zombies.length;i++){const u=zombies[i];if(!u.alive)continue;const h=hashId(u.x,u.y);u.next=zHead[h];zHead[h]=i}}
+function nearestEnemy(u,enemy,heads,r){let best=null,bd=r*r,cx=(u.x/HASH)|0,cy=(u.y/HASH)|0,rr=Math.ceil(r/HASH);for(let yy=Math.max(0,cy-rr);yy<=Math.min(HASH_H-1,cy+rr);yy++)for(let xx=Math.max(0,cx-rr);xx<=Math.min(HASH_W-1,cx+rr);xx++){let i=heads[yy*HASH_W+xx],guard=0;while(i>=0&&guard++<90){const t=enemy[i],dx=t.x-u.x,dy=t.y-u.y,d=dx*dx+dy*dy;if(t.alive&&d<bd){best=t;bd=d}i=t.next}}return best}
+function separation(u,arr,heads,r,maxN=8){let sx=0,sy=0,n=0,cx=(u.x/HASH)|0,cy=(u.y/HASH)|0;for(let yy=Math.max(0,cy-1);yy<=Math.min(HASH_H-1,cy+1);yy++)for(let xx=Math.max(0,cx-1);xx<=Math.min(HASH_W-1,cx+1);xx++){let i=heads[yy*HASH_W+xx],guard=0;while(i>=0&&guard++<40){const t=arr[i];if(t!==u&&t.alive){let dx=u.x-t.x,dy=u.y-t.y,d2=dx*dx+dy*dy;if(d2>1&&d2<r*r){const d=Math.sqrt(d2),f=(r-d)/r;sx+=dx/d*f;sy+=dy/d*f;if(++n>=maxN)return{x:sx,y:sy}}}i=t.next}}return{x:sx,y:sy}}
+function healNearby(u,dt){let best=null,bh=96,cx=(u.x/HASH)|0,cy=(u.y/HASH)|0;for(let yy=Math.max(0,cy-1);yy<=Math.min(HASH_H-1,cy+1);yy++)for(let xx=Math.max(0,cx-1);xx<=Math.min(HASH_W-1,cx+1);xx++){let i=hHead[yy*HASH_W+xx],guard=0;while(i>=0&&guard++<32){const t=humans[i];if(t!==u&&t.alive&&t.hp<bh&&hypot(t.x-u.x,t.y-u.y)<58){best=t;bh=t.hp}i=t.next}}if(best)best.hp=Math.min(100,best.hp+dt*12)}
+function lineBlocked(x1,y1,x2,y2){const steps=Math.ceil(hypot(x2-x1,y2-y1)/NAV);for(let i=1;i<steps;i++){const t=i/steps;if(!isOpen(lerp(x1,x2,t),lerp(y1,y2,t)))return true}return false}
+function tryMove(u,dx,dy,dt,speed){let l=hypot(dx,dy);if(l<.001){u.vx*=.6;u.vy*=.6;return}dx/=l;dy/=l;let nx=u.x+dx*speed*dt,ny=u.y+dy*speed*dt;const ox=u.x,oy=u.y;if(isOpen(nx,ny)){u.x=nx;u.y=ny}else{if(isOpen(nx,u.y))u.x=nx;if(isOpen(u.x,ny))u.y=ny; if(Math.abs(u.x-ox)+Math.abs(u.y-oy)<.1){const id=navId(u.x,u.y);if(id>=0){const fx=flowDx[id],fy=flowDy[id];if(fx||fy){const tx=u.x+fx*speed*dt,ty=u.y+fy*speed*dt;if(isOpen(tx,ty)){u.x=tx;u.y=ty}}}}}u.x=clamp(u.x,5,WORLD_W-5);u.y=clamp(u.y,5,WORLD_H-5);u.vx=(u.x-ox)/dt;u.vy=(u.y-oy)/dt;if(hypot(u.vx,u.vy)>.8)u.angle=Math.atan2(u.vy,u.vx)+Math.PI/2}
+function killHuman(u,from){if(!u.alive)return;u.alive=false;u.selected=false;state.humanLosses++;corpses.push({x:u.x,y:u.y,angle:u.angle,kind:8,color:[.30,.33,.32],t:state.time});if(corpses.length>4800)corpses.shift();effects.push({kind:'blood',x:u.x,y:u.y,t:.55,max:.55,r:18});affectMorale(u.x,u.y,115,8)}
+function killZombie(u){if(!u.alive)return;u.alive=false;state.zombieKills++;corpses.push({x:u.x,y:u.y,angle:u.angle,kind:9,color:[.28,.20,.18],t:state.time});if(corpses.length>4800)corpses.shift();if(rnd()<.45)effects.push({kind:'blood',x:u.x,y:u.y,t:.35,max:.35,r:14})}
+function affectMorale(x,y,r,amount){const cx=(x/HASH)|0,cy=(y/HASH)|0,rr=Math.ceil(r/HASH);for(let yy=Math.max(0,cy-rr);yy<=Math.min(HASH_H-1,cy+rr);yy++)for(let xx=Math.max(0,cx-rr);xx<=Math.min(HASH_W-1,cx+rr);xx++){let i=hHead[yy*HASH_W+xx];while(i>=0){const u=humans[i];if(u.alive&&hypot(u.x-x,u.y-y)<r)u.morale=Math.max(0,u.morale-amount*range(.65,1.05));i=u.next}}}
+function shoot(u,t){const st=HUMAN_STATS[u.type];u.cool=st.cool*range(.88,1.12);const dx=t.x-u.x,dy=t.y-u.y,d=hypot(dx,dy);u.angle=Math.atan2(dy,dx)+Math.PI/2;const acc=clamp(1-d/st.range*.28,u.type===1?.58:.68,.97);effects.push({kind:'tracer',x1:u.x,y1:u.y,x2:t.x+range(-4,4),y2:t.y+range(-4,4),t:u.type===2?.055:.085,max:u.type===2?.055:.085});if(effects.length>850)effects.splice(0,effects.length-850);if(rnd()<acc){let dmg=range(st.dmg[0],st.dmg[1]);if(u.type===1&&d<58)dmg*=1.25;t.hp-=dmg;if(t.hp<=0)killZombie(t)}}
+function updateHuman(u,dt){if(!u.alive)return;u.cool-=dt;u.scan-=dt;u.morale=Math.min(100,u.morale+dt*(state.time-u.lastHit>5?.34:.06));const st=HUMAN_STATS[u.type];
+ if(u.type===3)healNearby(u,dt)
+ if(u.morale<12&&u.order!=='retreat'&&u.order!=='rout'){u.order='rout';const p=nearestOpen(WORLD_W/2+range(-180,180),WORLD_H/2+range(-160,160));u.targetX=p.x;u.targetY=p.y;u.selected=false}
+ if(u.scan<=0){u.scan=.14+range(0,.14);u.target=nearestEnemy(u,zombies,zHead,st.range)}
+ const canFire=u.order!=='retreat'&&u.order!=='rout';if(canFire&&u.target&&u.target.alive&&u.cool<=0){const d=hypot(u.target.x-u.x,u.target.y-u.y);if(d<st.range&&!lineBlocked(u.x,u.y,u.target.x,u.target.y))shoot(u,u.target)}
+ let dx=u.targetX-u.x,dy=u.targetY-u.y,d=hypot(dx,dy);let speed=(u.order==='retreat'||u.order==='rout'?st.speed*1.52:u.order==='advance'?st.speed*1.12:st.speed);if(d<7){dx=0;dy=0}
+ const sep=separation(u,humans,hHead,14,8);dx+=sep.x*40;dy+=sep.y*40;if(canFire){const threat=nearestEnemy(u,zombies,zHead,34);if(threat){dx+=(u.x-threat.x)*1.05;dy+=(u.y-threat.y)*1.05}}tryMove(u,dx,dy,dt,speed);
+}
+function updateZombie(u,dt){if(!u.alive)return;u.cool-=dt;u.scan-=dt;if(u.scan<=0){u.scan=.18+range(0,.26);u.target=nearestEnemy(u,humans,hHead,u.kind===2?205:u.kind===3?155:135)}
+ let dx=0,dy=0;if(u.target&&u.target.alive){dx=u.target.x-u.x;dy=u.target.y-u.y;const d=hypot(dx,dy);if(d<MELEE+(u.kind===3?7:0)){if(u.cool<=0){u.cool=u.kind===3?.62:.76+range(0,.24);const dmg=u.kind===3?range(21,31):u.kind===2?range(8,14):range(10,17);u.target.hp-=dmg;u.target.morale=Math.max(0,u.target.morale-dmg*.82);u.target.lastHit=state.time;effects.push({kind:'hit',x:u.target.x,y:u.target.y,t:.15,max:.15,r:u.kind===3?14:9});if(u.target.hp<=0)killHuman(u.target,u)}return}}else{const id=navId(u.x,u.y);if(id>=0){dx=flowDx[id];dy=flowDy[id]}if(dx===0&&dy===0){dx=WORLD_W/2-u.x;dy=WORLD_H/2-u.y}}
+ const sep=separation(u,zombies,zHead,u.kind===3?23:12,7);dx+=sep.x*(u.kind===3?10:22);dy+=sep.y*(u.kind===3?10:22);tryMove(u,dx,dy,dt,u.speed);const cd=hypot(u.x-WORLD_W/2,u.y-WORLD_H/2);if(cd<118){state.core-=dt*(u.kind===3?1.45:u.kind===2?.48:.31);if(state.core<0)state.core=0}
+}
+function updateThreats(){const t=[0,0,0,0];for(const z of zombies){if(!z.alive)continue;const dx=z.x-WORLD_W/2,dy=z.y-WORLD_H/2;if(Math.abs(dx)>Math.abs(dy))t[dx>0?1:3]++;else t[dy>0?2:0]++}state.threat=t}
+function simulation(dt){if(state.paused||state.ended)return;state.time+=dt*state.speed;const d=dt*state.speed;rebuildHash();for(const u of humans)updateHuman(u,d);for(const z of zombies)updateZombie(z,d);
+ if(state.time>=state.nextSurge&&aliveZombies()<5200){const side=Math.floor(rnd()*4),n=Math.floor(range(170,290)+state.time*.20);spawnSide(side,n,1+state.time/1200);state.nextSurge=state.time+range(27,39);const names=['北部城区','东部城区','南部城区','西部城区'];showToast(`${names[side]}出现新的尸潮`,`约 ${n} 个感染体进入城市边缘`)}
+ effects.forEach(e=>e.t-=d);effects=effects.filter(e=>e.t>0);if(state.time-state.lastDistrictCheck>1.1){state.lastDistrictCheck=state.time;updateDistricts(false);updateThreats()}if(state.core<=0||aliveHumans()<18)endGame(false);else if(state.time>=state.duration)endGame(true);
+}
+function aliveHumans(){let n=0;for(const u of humans)if(u.alive)n++;return n}function aliveZombies(){let n=0;for(const u of zombies)if(u.alive)n++;return n}
+
+// -------------------------- commands --------------------------
+function setMode(m){state.mode=m;document.querySelectorAll('.mode[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));overlay.style.cursor=m==='select'?'crosshair':'cell'}
+function selectByRect(x1,y1,x2,y2,add=false){if(!add)for(const u of humans)u.selected=false;const minx=Math.min(x1,x2),maxx=Math.max(x1,x2),miny=Math.min(y1,y2),maxy=Math.max(y1,y2);let n=0;for(const u of humans){if(!u.alive)continue;const s=worldToScreen(u.x,u.y);if(s.x>=minx&&s.x<=maxx&&s.y>=miny&&s.y<=maxy){u.selected=true;n++}}state.selectedCount=countSelected();updateSelectionUI()}
+function selectNear(sx,sy,add=false){if(!add)for(const u of humans)u.selected=false;let best=null,bd=24*24;for(const u of humans){if(!u.alive)continue;const s=worldToScreen(u.x,u.y),d=(s.x-sx)**2+(s.y-sy)**2;if(d<bd){best=u;bd=d}}if(best){const gx=best.group;for(const u of humans)if(u.alive&&u.group===gx&&hypot(u.x-best.x,u.y-best.y)<420)u.selected=true}state.selectedCount=countSelected();updateSelectionUI()}
+function selectAll(){for(const u of humans)u.selected=u.alive;state.selectedCount=countSelected();updateSelectionUI()}
+function countSelected(){let n=0;for(const u of humans)if(u.alive&&u.selected)n++;return n}
+function issueLine(mode,a,b){const selected=humans.filter(u=>u.alive&&u.selected);if(!selected.length){showToast('没有选中守军','先框选一片部队，再拖出命令线');setMode('select');return}const dx=b.x-a.x,dy=b.y-a.y,len=Math.max(1,hypot(dx,dy)),ux=dx/len,uy=dy/len,px=-uy,py=ux;const spacing=mode==='retreat'?18:17;const cap=Math.max(2,Math.floor(len/spacing)+1),rows=Math.ceil(selected.length/cap),depth=17;
+ // stable assignment based on current projection along the line to reduce crossing
+ selected.sort((m,n)=>((m.x-a.x)*ux+(m.y-a.y)*uy)-((n.x-a.x)*ux+(n.y-a.y)*uy));
+ for(let i=0;i<selected.length;i++){const row=(i/cap)|0,col=i%cap,t=cap<=1?.5:col/(cap-1),rowOff=(row-(rows-1)/2)*depth;let tx=a.x+dx*t+px*rowOff,ty=a.y+dy*t+py*rowOff;const p=nearestOpen(tx,ty);const u=selected[i];u.targetX=p.x;u.targetY=p.y;u.order=mode; if(mode==='retreat')u.morale=Math.min(100,u.morale+4)}
+ recentOrders.push({mode,a:{...a},b:{...b},t:2.2});if(recentOrders.length>8)recentOrders.shift();showToast(mode==='defend'?`部署 ${selected.length} 人防线`:mode==='advance'?`推进 ${selected.length} 人`:`撤出 ${selected.length} 人`,mode==='defend'?'部队会自行展开并守住这条街线':mode==='advance'?'移动途中保持火力':'强行脱离接触，优先到达撤退线');state.orderSerial++;updateSelectionUI();
+}
+function reinforce(){if(state.reinforce<=0||state.ended)return;state.reinforce--;for(const u of humans)u.selected=false;const before=humans.length;spawnHumanLine(WORLD_W/2-260,WORLD_H/2+165,WORLD_W/2+260,WORLD_H/2+165,48,40+state.reinforce);for(let i=before;i<humans.length;i++){humans[i].selected=true;humans[i].order='defend'}state.selectedCount=countSelected();showToast('增援纵队抵达中央城区','48 名守军已加入当前选择');updateUI(true)}
+
+// -------------------------- districts / UI --------------------------
+function updateDistricts(first){for(const d of districts){let h=0,z=0;for(const u of humans)if(u.alive&&u.x>=d.x&&u.x<d.x+d.w&&u.y>=d.y&&u.y<d.y+d.h)h++;for(const u of zombies)if(u.alive&&u.x>=d.x&&u.x<d.x+d.w&&u.y>=d.y&&u.y<d.y+d.h)z++;const prev=d.status;d.h=h;d.z=z;d.status=z>72&&z>Math.max(18,h*2.0)?'overrun':z>28&&h>4?'contested':'safe';if(!first&&prev!=='overrun'&&d.status==='overrun')showToast(`${d.name}正在失守`,`${z} 个感染体已形成局部优势`) }renderDistrictPills()}
+function renderDistrictPills(){ui('districts').innerHTML=districts.map(d=>`<span class="district ${d.status}">${d.name}</span>`).join('')}
+function showToast(a,b=''){const t=ui('toast');t.innerHTML=`${a}${b?`<small>${b}</small>`:''}`;t.classList.add('show');clearTimeout(showToast._t);showToast._t=setTimeout(()=>t.classList.remove('show'),2800)}
+function updateSelectionUI(){const sel=humans.filter(u=>u.alive&&u.selected);state.selectedCount=sel.length;ui('sel-count').textContent=sel.length;if(!sel.length){ui('sel-title').textContent='未选择部队';ui('sel-order').textContent='—';ui('sel-morale').textContent='—';ui('sel-health').textContent='—';ui('morale-bar').style.width='0%';ui('sel-comp').textContent='步枪 0 · 霰弹 0 · 机枪 0 · 医疗 0';return}let m=0,h=0,orders={},comp=[0,0,0,0];for(const u of sel){m+=u.morale;h+=u.hp;orders[u.order]=(orders[u.order]||0)+1;comp[u.type]++}m/=sel.length;h/=sel.length;const order=Object.entries(orders).sort((a,b)=>b[1]-a[1])[0][0];const names={defend:'防守',advance:'推进',retreat:'撤退',rout:'溃退'};ui('sel-title').textContent=`已选择 ${sel.length} 人`;ui('sel-order').textContent=names[order]||order;ui('sel-morale').textContent=Math.round(m)+'%';ui('sel-health').textContent=Math.round(h)+'%';ui('morale-bar').style.width=clamp(m,0,100)+'%';ui('sel-comp').textContent=`步枪 ${comp[0]} · 霰弹 ${comp[1]} · 机枪 ${comp[2]} · 医疗 ${comp[3]}`}
+function updateUI(force=false){const h=aliveHumans(),z=aliveZombies();ui('human-count').textContent=h.toLocaleString();ui('zombie-count').textContent=z.toLocaleString();ui('loss-count').textContent=state.humanLosses.toLocaleString();ui('core-hp').textContent=Math.max(0,Math.round(state.core))+'%';const left=Math.max(0,state.duration-state.time),mm=Math.floor(left/60),ss=Math.floor(left%60);ui('timer').textContent=`${String(mm).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;ui('reinforce-count').textContent=state.reinforce;ui('cam-state').textContent=`${Math.round(cam.zoom*100)}% · ${Math.round(cam.rot*180/Math.PI)}°`;ui('pause-copy').textContent=state.paused?'继续':'暂停';ui('pause-badge').style.display=state.paused?'block':'none';const ids=['th-n','th-e','th-s','th-w'];for(let i=0;i<4;i++){const el=ui(ids[i]),v=state.threat[i]||0;const names=['北','东','南','西'];el.textContent=`${names[i]} · ${v.toLocaleString()}`;el.classList.toggle('hot',v>240);el.classList.toggle('critical',v>520)}updateSelectionUI()}
+function endGame(win){if(state.ended)return;state.ended=true;state.paused=true;ui('result').classList.remove('hidden');ui('result-title').textContent=win?'城市还在呼吸':'中央城区失守';ui('result-kicker').textContent=win?'SURVIVED':'LINE COLLAPSED';ui('result-copy').textContent=win?'你没有守住每一个街区，但核心城区撑过了这一轮围城。':'尸潮穿过了最后一道纵深防线。下一局更早地收缩战线，往往比死守外围更有效。';ui('result-stats').innerHTML=`<div><b>${aliveHumans().toLocaleString()}</b>幸存守军</div><div><b>${state.zombieKills.toLocaleString()}</b>击杀感染体</div><div><b>${state.humanLosses.toLocaleString()}</b>守军阵亡</div><div><b>${Math.round(state.core)}%</b>核心区完整度</div>`}
+
+// -------------------------- camera / input --------------------------
+function worldToScreen(x,y){const dx=x-cam.x,dy=y-cam.y,c=Math.cos(-cam.rot),s=Math.sin(-cam.rot),rx=dx*c-dy*s,ry=(dx*s+dy*c)*PITCH;return{x:rx*cam.zoom+W/2,y:ry*cam.zoom+H/2}}
+function screenToWorld(x,y){const rx=(x-W/2)/cam.zoom,ry=(y-H/2)/(cam.zoom*PITCH),c=Math.cos(cam.rot),s=Math.sin(cam.rot);return{x:cam.x+rx*c-ry*s,y:cam.y+rx*s+ry*c}}
+function panByScreen(dx,dy){const rx=dx/cam.zoom,ry=dy/(cam.zoom*PITCH),c=Math.cos(cam.rot),s=Math.sin(cam.rot),wx=rx*c-ry*s,wy=rx*s+ry*c;cam.x-=wx;cam.y-=wy;clampCam()}
+function clampCam(){cam.x=clamp(cam.x,-500,WORLD_W+500);cam.y=clamp(cam.y,-500,WORLD_H+500)}
+function fitCity(){cam.x=WORLD_W/2;cam.y=WORLD_H/2;if(!Number.isFinite(cam.rot))cam.rot=Math.PI/4;const corners=[[0,0],[WORLD_W,0],[0,WORLD_H],[WORLD_W,WORLD_H]];let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;const c=Math.cos(-cam.rot),ss=Math.sin(-cam.rot);for(const [x,y] of corners){const dx=x-cam.x,dy=y-cam.y,rx=dx*c-dy*ss,ry=(dx*ss+dy*c)*PITCH;minx=Math.min(minx,rx);maxx=Math.max(maxx,rx);miny=Math.min(miny,ry);maxy=Math.max(maxy,ry)}cam.zoom=clamp(Math.min((W-70)/(maxx-minx),(H-150)/(maxy-miny)),.14,.68)}
+function rotateCamera(delta){cam.rot+=delta;while(cam.rot>Math.PI)cam.rot-=TAU;while(cam.rot<-Math.PI)cam.rot+=TAU}
+function resize(){DPR=Math.min(devicePixelRatio||1,2);W=innerWidth;H=innerHeight;glCanvas.width=Math.round(W*DPR);glCanvas.height=Math.round(H*DPR);overlay.width=Math.round(W*DPR);overlay.height=Math.round(H*DPR);overlay.style.width=W+'px';overlay.style.height=H+'px';octx.setTransform(DPR,0,0,DPR,0,0);gl.viewport(0,0,glCanvas.width,glCanvas.height)}
+window.addEventListener('resize',resize);
+overlay.addEventListener('contextmenu',e=>e.preventDefault());
+overlay.addEventListener('pointerdown',e=>{if(!state.started||state.ended)return;overlay.setPointerCapture(e.pointerId);pointer.down=true;pointer.button=e.button;pointer.x=pointer.sx=e.clientX;pointer.y=pointer.sy=e.clientY;const w=screenToWorld(e.clientX,e.clientY);pointer.wx=w.x;pointer.wy=w.y;pointer.dragging=false;pointer.modeAtDown=state.mode;if(e.button===0&&state.mode!=='select')commandPreview={mode:state.mode,a:w,b:w};});
+overlay.addEventListener('pointermove',e=>{if(!pointer.down)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(Math.abs(e.clientX-pointer.sx)+Math.abs(e.clientY-pointer.sy)>5)pointer.dragging=true;if(pointer.button===2||pointer.button===1){panByScreen(dx,dy)}else if(pointer.button===0&&pointer.modeAtDown!=='select'&&commandPreview){commandPreview.b=screenToWorld(e.clientX,e.clientY)}pointer.x=e.clientX;pointer.y=e.clientY});
+overlay.addEventListener('pointerup',e=>{if(!pointer.down)return;const drag=pointer.dragging;pointer.down=false;if(pointer.button===0){if(pointer.modeAtDown==='select'){if(drag)selectByRect(pointer.sx,pointer.sy,e.clientX,e.clientY,e.shiftKey);else selectNear(e.clientX,e.clientY,e.shiftKey)}else if(commandPreview){const b=screenToWorld(e.clientX,e.clientY);issueLine(pointer.modeAtDown,commandPreview.a,b);commandPreview=null}}else if(pointer.button===2&&!drag&&countSelected()>0){const p=screenToWorld(e.clientX,e.clientY);const sel=humans.filter(u=>u.alive&&u.selected);const side=Math.ceil(Math.sqrt(sel.length));const gap=17;sel.forEach((u,i)=>{const ox=(i%side-(side-1)/2)*gap,oy=((i/side|0)-(Math.ceil(sel.length/side)-1)/2)*gap;const t=nearestOpen(p.x+ox,p.y+oy);u.targetX=t.x;u.targetY=t.y;u.order='advance'});showToast(`移动 ${sel.length} 人`,'右键点地为快速移动；画线仍是主要指挥方式')}});
+overlay.addEventListener('wheel',e=>{if(!state.started)return;e.preventDefault();const before=screenToWorld(e.clientX,e.clientY);const factor=Math.exp(-e.deltaY*.001);cam.zoom=clamp(cam.zoom*factor,.14,2.8);const after=screenToWorld(e.clientX,e.clientY);cam.x+=before.x-after.x;cam.y+=before.y-after.y;clampCam()},{passive:false});
+window.addEventListener('keydown',e=>{if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;keys.add(e.code);if(e.repeat)return;if(e.code==='Digit1')setMode('select');if(e.code==='Digit2')setMode('defend');if(e.code==='Digit3')setMode('advance');if(e.code==='Digit4')setMode('retreat');if(e.code==='KeyX')selectAll();if(e.code==='KeyH')fitCity();if(e.code==='KeyQ')rotateCamera(-Math.PI/18);if(e.code==='KeyE')rotateCamera(Math.PI/18);if(e.code==='KeyB')reinforce();if(e.code==='Space'){e.preventDefault();state.paused=!state.paused;updateUI(true)}});window.addEventListener('keyup',e=>keys.delete(e.code));
+function updateCamera(dt){let dx=0,dy=0;if(keys.has('KeyW')||keys.has('ArrowUp'))dy-=1;if(keys.has('KeyS')||keys.has('ArrowDown'))dy+=1;if(keys.has('KeyD')||keys.has('ArrowRight'))dx+=1;if(keys.has('KeyA')||keys.has('ArrowLeft'))dx-=1;if(dx||dy){const l=hypot(dx,dy);panByScreen(-dx/l*520*dt,-dy/l*520*dt)}}
+
+// -------------------------- drawing --------------------------
+function drawGL(){gl.clearColor(.07,.08,.085,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+ gl.useProgram(bgProg);setWorldUniforms(bgProg);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,mapTexture);gl.uniform1i(gl.getUniformLocation(bgProg,'uTex'),0);gl.bindVertexArray(bgVAO);gl.disable(gl.BLEND);gl.disable(gl.DEPTH_TEST);gl.drawArrays(gl.TRIANGLES,0,6);
+ // 2.5D 建筑体块：屋顶 + 四面立面 + 程序化窗格
+ gl.clear(gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LEQUAL);gl.useProgram(buildingProg);setWorldUniforms(buildingProg);gl.bindVertexArray(buildingVAO);gl.drawArrays(gl.TRIANGLES,0,buildingVertexCount);gl.disable(gl.DEPTH_TEST);
+ // 单位保持在战术层可读，避免被建筑完全吃掉
+ gl.enable(gl.BLEND);gl.useProgram(unitProg);setWorldUniforms(unitProg);gl.uniform1f(gl.getUniformLocation(unitProg,'uTime'),state.time);gl.bindVertexArray(unitVAO);let n=0;
+ function add(x,y,size,angle,kind,selected,c){if(n>=MAX_UNITS)return;const o=n*UNIT_STRIDE;unitData[o]=x;unitData[o+1]=y;unitData[o+2]=size;unitData[o+3]=angle;unitData[o+4]=kind;unitData[o+5]=selected?1:0;unitData[o+6]=c[0];unitData[o+7]=c[1];unitData[o+8]=c[2];n++}
+ for(const c of corpses)add(c.x,c.y,13,c.angle,c.kind,0,c.color);
+ for(const z of zombies)if(z.alive)add(z.x,z.y,z.kind===3?23:z.kind===2?16.5:18,z.angle,z.kind,0,z.color);
+ for(const u of humans)if(u.alive){const k=HUMAN_STATS[u.type].kind;add(u.x,u.y,u.type===2?20:19,u.angle,k,u.selected,u.color);}
+ gl.bindBuffer(gl.ARRAY_BUFFER,unitBuffer);gl.bufferSubData(gl.ARRAY_BUFFER,0,unitData.subarray(0,n*UNIT_STRIDE));gl.drawArrays(gl.POINTS,0,n);gl.bindVertexArray(null);
+}
+function drawOverlay(){octx.clearRect(0,0,W,H);
+ // screen-space soft vignette
+ const vg=octx.createRadialGradient(W/2,H/2,Math.min(W,H)*.28,W/2,H/2,Math.max(W,H)*.72);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.20)');octx.fillStyle=vg;octx.fillRect(0,0,W,H);
+ // tracers / impacts
+ octx.lineCap='round';for(const e of effects){const a=clamp(e.t/e.max,0,1);if(e.kind==='tracer'){const p1=worldToScreen(e.x1,e.y1),p2=worldToScreen(e.x2,e.y2);octx.strokeStyle=`rgba(239,232,210,${a*.72})`;octx.lineWidth=Math.max(1,cam.zoom*.9);octx.beginPath();octx.moveTo(p1.x,p1.y);octx.lineTo(p2.x,p2.y);octx.stroke()}else{const p=worldToScreen(e.x,e.y);octx.fillStyle=e.kind==='blood'?`rgba(91,55,53,${a*.28})`:`rgba(235,229,219,${a*.32})`;octx.beginPath();octx.arc(p.x,p.y,e.r*cam.zoom*(1+(1-a)*.5),0,TAU);octx.fill()}}
+ // recent command lines
+ for(const r of recentOrders){r.t-=1/60;const a=worldToScreen(r.a.x,r.a.y),b=worldToScreen(r.b.x,r.b.y),alpha=clamp(r.t/2.2,0,1);octx.setLineDash(r.mode==='retreat'?[7,7]:[]);octx.strokeStyle=r.mode==='retreat'?`rgba(203,174,127,${alpha*.8})`:`rgba(235,237,234,${alpha*.72})`;octx.lineWidth=1.5;octx.beginPath();octx.moveTo(a.x,a.y);octx.lineTo(b.x,b.y);octx.stroke();octx.setLineDash([])}recentOrders=recentOrders.filter(r=>r.t>0);
+ // selection rectangle
+ if(pointer.down&&pointer.button===0&&pointer.modeAtDown==='select'&&pointer.dragging){const x=Math.min(pointer.sx,pointer.x),y=Math.min(pointer.sy,pointer.y),w=Math.abs(pointer.x-pointer.sx),h=Math.abs(pointer.y-pointer.sy);octx.fillStyle='rgba(244,245,242,.045)';octx.strokeStyle='rgba(244,245,242,.65)';octx.lineWidth=1;octx.fillRect(x,y,w,h);octx.strokeRect(x+.5,y+.5,w,h)}
+ // command preview
+ if(commandPreview){const a=worldToScreen(commandPreview.a.x,commandPreview.a.y),b=worldToScreen(commandPreview.b.x,commandPreview.b.y);octx.setLineDash(commandPreview.mode==='retreat'?[8,7]:[]);octx.strokeStyle=commandPreview.mode==='retreat'?'rgba(205,177,131,.95)':'rgba(246,247,244,.95)';octx.lineWidth=2;octx.beginPath();octx.moveTo(a.x,a.y);octx.lineTo(b.x,b.y);octx.stroke();octx.setLineDash([]);const dx=b.x-a.x,dy=b.y-a.y,l=hypot(dx,dy);if(l>22){const ux=dx/l,uy=dy/l;octx.fillStyle=octx.strokeStyle;octx.beginPath();octx.moveTo(b.x,b.y);octx.lineTo(b.x-ux*10-uy*5,b.y-uy*10+ux*5);octx.lineTo(b.x-ux*10+uy*5,b.y-uy*10-ux*5);octx.closePath();octx.fill()}}
+}
+function render(){drawGL();drawOverlay()}
+
+// -------------------------- loop / boot --------------------------
+function loop(now){const dt=Math.min(.05,(now-lastFrame)/1000);lastFrame=now;fpsFrames++;fpsClock+=dt;if(fpsClock>1){fps=fpsFrames/fpsClock;fpsFrames=0;fpsClock=0}if(state.started&&!state.ended){updateCamera(dt);accumulator+=dt;const step=1/20;let guard=0;while(accumulator>=step&&guard++<4){simulation(step);accumulator-=step}uiClock+=dt;if(uiClock>.35){uiClock=0;updateUI()}}render();requestAnimationFrame(loop)}
+function startGame(){ui('intro').classList.add('hidden');state.started=true;state.paused=false;lastFrame=performance.now();showToast('战斗已经开始','尸潮正从四面推进。先看全局，再决定哪里值得守。');}
+function restart(){ui('result').classList.add('hidden');seed=0x4c415354;cam.rot=Math.PI/4;initEntities();fitCity();state.started=true;state.paused=false;setMode('select');}
+
+// buttons
+ui('start-btn').onclick=startGame;ui('restart-btn').onclick=restart;ui('home-btn').onclick=fitCity;ui('pause-btn').onclick=()=>{state.paused=!state.paused;updateUI(true)};ui('reinforce-btn').onclick=reinforce;ui('all-btn').onclick=selectAll;document.querySelectorAll('.mode[data-mode]').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+
+window.__CITYLINE__={snapshot:()=>({time:state.time,humans:aliveHumans(),zombies:aliveZombies(),kills:state.zombieKills,losses:state.humanLosses,core:state.core,selected:countSelected(),threat:[...state.threat],zoom:cam.zoom,rot:cam.rot,ended:state.ended}),step:(seconds=1)=>{const was=state.paused;state.paused=false;for(let i=0;i<Math.floor(seconds*20);i++)simulation(1/20);state.paused=was;updateUI(true);return window.__CITYLINE__.snapshot()},fit:fitCity,focus:(x,y,z=.55)=>{cam.x=x;cam.y=y;cam.zoom=clamp(z,.14,2.8)},project:worldToScreen};
+
+try{resize();buildCity();buildBuildingMesh();uploadMap();initEntities();fitCity();requestAnimationFrame(loop)}catch(err){console.error(err);ui('error').style.display='grid';ui('error').innerHTML=`<div><h2>游戏初始化失败</h2><p>${String(err.message||err)}</p></div>`}
+})();
+</script>
+</body>
+</html>

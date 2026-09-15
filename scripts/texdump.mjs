@@ -1,0 +1,12 @@
+import puppeteer from 'puppeteer-core';
+import { startServer, EDGE } from './serve.mjs';
+const { server, port } = await startServer();
+const browser = await puppeteer.launch({ executablePath: EDGE, headless: true, args: ['--no-sandbox', '--enable-unsafe-swiftshader'] });
+const page = await browser.newPage();
+await page.setViewport({ width: 2048, height: 1030 });
+page.on('pageerror', (e) => console.log('[pageerror]', e.message));
+await page.goto(`http://127.0.0.1:${port}/?debug=facades`, { waitUntil: 'load' });
+await new Promise(r => setTimeout(r, 3000));
+await page.screenshot({ path: 'docs/shots/_facades.png' });
+console.log('ok');
+await browser.close(); server.close();

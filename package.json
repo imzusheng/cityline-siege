@@ -1,0 +1,22 @@
+{
+  "name": "cityline-siege",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "CITYLINE — Zombie City Siege. A 2.5D isometric tactical web game: 128 soldiers, a drawn battle line, and a city-scale horde.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "build:standalone": "vite build && node scripts/build-standalone.mjs",
+    "shots": "vite build && node scripts/play.mjs shots docs/shots",
+    "perf": "vite build && node scripts/play.mjs perf docs/shots",
+    "fullgame": "vite build && node scripts/fullgame.mjs turtle",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "puppeteer-core": "^23.6.0"
+  }
+}

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>CITYLINE · 尸潮围城</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23111'/%3E%3Cpath d='M3 12h10M8 3v7' stroke='%23ddd' stroke-width='1.4'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="./src/ui/style.css" />
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="fx"></canvas>
+<div id="ui">
+  <div id="hud-top" class="hud">
+    <div class="stat-block" id="stat-block">
+      <div class="stat"><label>守军</label><strong id="s-humans">—</strong></div>
+      <div class="stat"><label>感染体</label><strong id="s-zombies">—</strong></div>
+      <div class="stat"><label>伤亡</label><strong id="s-losses">—</strong></div>
+      <div class="stat"><label>时间</label><strong id="s-time">00:00</strong></div>
+    </div>
+    <div class="obj-block" id="obj-block"></div>
+    <div class="spacer"></div>
+    <div class="stat-block compact">
+      <div class="stat"><label>FPS</label><strong id="s-fps">—</strong></div>
+      <div class="stat"><label>单位</label><strong id="s-units">—</strong></div>
+      <div class="stat"><label>镜头</label><strong id="s-cam">—</strong></div>
+    </div>
+  </div>
+
+  <div id="toasts"></div>
+
+  <div id="sel-panel" class="panel hidden">
+    <div class="panel-head"><b id="sel-title">未选择部队</b><span id="sel-n"></span></div>
+    <div class="row"><span>士气</span><div class="bar"><i id="sel-morale"></i></div><em id="sel-morale-v">—</em></div>
+    <div class="row"><span>状态</span><em id="sel-state">—</em></div>
+    <div class="row"><span>编成</span><em id="sel-comp">—</em></div>
+  </div>
+
+  <div id="toolbar">
+    <button class="tool active" data-tool="select"><i>1</i><b>框选</b></button>
+    <button class="tool" data-tool="hold"><i>2</i><b>守住阵线</b></button>
+    <button class="tool" data-tool="advance"><i>3</i><b>推进</b></button>
+    <button class="tool" data-tool="fallback"><i>4</i><b>后撤</b></button>
+    <button class="tool" data-tool="force"><i>5</i><b>强行军</b></button>
+    <div class="sep"></div>
+    <button class="tool ghost" id="btn-all"><i>A</i><b>全选</b></button>
+    <button class="tool ghost" id="btn-home"><i>H</i><b>全城</b></button>
+    <div class="sep"></div>
+    <button class="tool ghost" id="btn-reinforce"><i>R</i><b>增援 · <span id="reinf-n">3</span></b></button>
+  </div>
+
+  <div id="hintbar"></div>
+
+  <div id="splash">
+    <div class="splash-inner">
+      <div class="kicker">CITYLINE / 尸潮围城</div>
+      <h1>守住城市核心</h1>
+      <p>128 名守军。三个关键节点。尸潮已经出现在城市外围。</p>
+      <div class="controls">
+        <div><b>框选</b> 拖拽选择士兵</div>
+        <div><b>画线</b> 按 2/3/4/5 后拖出阵线</div>
+        <div><b>视角</b> WASD 平移 · 滚轮缩放 · Q/E 旋转 · H 全城</div>
+        <div><b>右键</b> 简单移动 · <b>空格</b> 暂停 · <b>Shift</b> 追加选择</div>
+      </div>
+      <button id="btn-start">开始防守</button>
+      <div class="load" id="load-line">正在生成城市与人物资源…</div>
+    </div>
+  </div>
+
+  <div id="result" class="hidden">
+    <div class="modal">
+      <div class="kicker" id="result-kicker">—</div>
+      <h1 id="result-title">—</h1>
+      <p id="result-copy">—</p>
+      <div class="result-stats" id="result-stats"></div>
+      <button id="btn-restart">再来一局</button>
+    </div>
+  </div>
+  <div id="fatal" class="hidden"></div>
+</div>
+<script type="module" src="./src/main.ts"></script>
+</body>
+</html>

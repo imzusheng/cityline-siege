@@ -1,0 +1,12 @@
+import { generateCity, GEN_STATS } from '../.tmp/citygen.mjs';
+const city = generateCity(0x51ed270b);
+console.log('buildings', city.buildings.length, JSON.stringify(GEN_STATS));
+const sorted = [...city.buildings].sort((a,b)=>b.height-a.height);
+console.log('tallest:');
+for (const b of sorted.slice(0,6)) console.log('  ', b.arch.id, b.arch.label, 'h=' + b.height.toFixed(0), 'w=' + b.w.toFixed(0), 'at', b.cx.toFixed(0), b.cy.toFixed(0), 'floors', b.floors);
+const counts = {};
+for (const b of city.buildings) counts[b.arch.id] = (counts[b.arch.id]??0)+1;
+console.log('arch mix', JSON.stringify(counts));
+const heights = city.buildings.map(b=>b.height).sort((a,b)=>a-b);
+console.log('height p10/p50/p90/max', heights[Math.floor(heights.length*0.1)].toFixed(0), heights[Math.floor(heights.length*0.5)].toFixed(0), heights[Math.floor(heights.length*0.9)].toFixed(0), heights[heights.length-1].toFixed(0));
+console.log('objectives', city.objectives.map(o=>o.name+'@'+o.x.toFixed(0)+','+o.y.toFixed(0)).join(' | '));

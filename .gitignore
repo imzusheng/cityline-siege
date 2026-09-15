@@ -1,0 +1,15 @@
+# dependencies
+node_modules/
+
+# build output (regenerate with: npm run build / npm run build:standalone)
+dist/
+.tmp/
+
+# local QA artefacts
+docs/play-*.json
+
+# editor / OS
+.DS_Store
+*.log
+.vscode/
+.idea/
