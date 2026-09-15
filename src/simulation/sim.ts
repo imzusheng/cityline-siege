@@ -28,7 +28,12 @@ export class Simulation {
 
   rebuildFlow(): void {
     const { city, nav } = this.world;
-    nav.buildFlow(city.objectives.filter(o => !o.lost), 0.16);
+    // A node can end up sharing a nav cell with a building — the grid blocks a
+    // whole 24-unit cell as soon as a building covers its centre — and buildFlow
+    // silently drops a blocked source, leaving the horde with no route to that
+    // node at all. Seed from the nearest walkable cell instead.
+    const targets = city.objectives.filter(o => !o.lost).map(o => nav.nearestOpen(o.x, o.y));
+    nav.buildFlow(targets, 0.16);
     this.flowDirty = false;
   }
 
