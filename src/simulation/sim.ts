@@ -40,6 +40,11 @@ export class Simulation {
   step(dt: number): void {
     const w = this.world;
     if (w.state.paused || w.state.ended) return;
+    // Remember where everyone was, so the renderer can draw a frame between this
+    // tick and the last one instead of holding a position for two or three
+    // display frames and then jumping.
+    for (const h of w.humans) { h.prevX = h.x; h.prevY = h.y; }
+    for (const z of w.zombies) { z.prevX = z.x; z.prevY = z.y; }
     w.state.time += dt;
     w.state.shake = Math.max(0, w.state.shake - dt * 2.2);
     w.rebuildHashes();

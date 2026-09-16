@@ -5,16 +5,22 @@
 // uses. Because the projection happens at bake time we get consistent 3/4 views
 // for every facing, real volume, and correct limb occlusion for free.
 //
-// The atlas cell is 96x96 with the feet anchored at (48, 88).
+// The atlas cell is 136x136 with the feet anchored at (68, 94). A sprite quad
+// maps exactly one cell, so a pose that crosses the border is visibly sliced
+// off, and the bounds are set by the rifle: an axonometric view projects a
+// weapon held forward far to the side (65 px) and, facing "south", far above the
+// head (88 px). Measured over every frame of every type and facing, the worst
+// case is 63 px right, 35 px left, 88 px up and 21 px down, which leaves a few
+// pixels of margin on each edge.
 
 import { TAU, clamp, lerp } from '../core/math';
 import { PITCH, ZSCALE } from '../core/config';
 import type { AnimName } from '../entities/anim';
 
-export const CELL = 96;
+export const CELL = 136;
 export const CHAR_H = 60;
 export const BP = CHAR_H / ZSCALE; // px per body-unit of ground extent
-export const FEET_ROW = 78;
+export const FEET_ROW = 94;
 
 export interface V3 { x: number; y: number; z: number }
 const v3 = (x: number, y: number, z: number): V3 => ({ x, y, z });
@@ -83,6 +89,8 @@ export interface Pose {
   hipL: number; kneeL: number; liftL: number;
   hipR: number; kneeR: number; liftR: number;
   handR: V3; weaponYaw: number; weaponPitch: number;
+  /** explicit support-hand target; when unset it is derived from the weapon */
+  handL?: V3;
   torsoLean: number; torsoTwist: number;
   headTilt: number; headYaw: number;
   crouch: number; bob: number;
@@ -162,7 +170,7 @@ function buildJoints(spec: FigureSpec, p: Pose): Joints {
 
   const handR = p.handR;
   const weaponDir = norm(rotZ(rotY(v3(1, 0, 0), p.weaponPitch), p.weaponYaw));
-  const handL = add(handR, mul(weaponDir, 0.255));
+  const handL = p.handL ?? add(handR, mul(weaponDir, 0.255));
 
   const bendR = norm(add(v3(0.2, 0.9, -1.1), v3(0, 0, p.armsOut * 0.2)));
   const elbowR = solveIK(shoR, handR, UPPER_ARM, FOREARM, bendR);
@@ -199,8 +207,30 @@ function depthOf(q: V3, pr: Proj): number {
 // ------------------------------------------------------------------ painting
 
 type Ctx = CanvasRenderingContext2D;
+type Pt = { x: number; y: number };
+type Fill = string | CanvasGradient;
 
-function poly(ctx: Ctx, pts: Array<{ x: number; y: number }>, fill: string, outline: string, lw: number): void {
+/** The bake lights every figure from the upper left, matching the baked drop
+ *  shadow and the ground texture's own lighting. */
+const LIGHT_X = -0.707, LIGHT_Y = -0.707;
+
+function hexRgb(h: string): [number, number, number] {
+  if (h[0] !== '#') return [128, 128, 128];
+  const v = h.length > 4
+    ? [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]
+    : [parseInt(h[1]! + h[1]!, 16), parseInt(h[2]! + h[2]!, 16), parseInt(h[3]! + h[3]!, 16)];
+  return [v[0] ?? 128, v[1] ?? 128, v[2] ?? 128];
+}
+function mixc(a: string, b: string, t: number): string {
+  const ca = hexRgb(a), cb = hexRgb(b);
+  return `rgb(${Math.round(lerp(ca[0], cb[0], t))},${Math.round(lerp(ca[1], cb[1], t))},${Math.round(lerp(ca[2], cb[2], t))})`;
+}
+/** Positive lightens toward white, negative darkens. */
+function tone(c: string, k: number): string {
+  return k >= 0 ? mixc(c, '#ffffff', k) : mixc(c, '#0b0d0c', -k);
+}
+
+function poly(ctx: Ctx, pts: Pt[], fill: Fill, outline: string, lw: number): void {
   ctx.beginPath();
   ctx.moveTo(pts[0]!.x, pts[0]!.y);
   for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i]!.x, pts[i]!.y);
@@ -210,18 +240,17 @@ function poly(ctx: Ctx, pts: Array<{ x: number; y: number }>, fill: string, outl
   if (lw > 0) { ctx.lineWidth = lw; ctx.strokeStyle = outline; ctx.stroke(); }
 }
 
-function limb(ctx: Ctx, a: { x: number; y: number }, b: { x: number; y: number }, wa: number, wb: number, fill: string, outline: string, lw: number): void {
+/** Flat limb, used for the prone corpses where volume does not read anyway. */
+function limb(ctx: Ctx, a: Pt, b: Pt, wa: number, wb: number, fill: Fill, outline: string, lw: number): void {
   const dx = b.x - a.x, dy = b.y - a.y;
   const l = Math.hypot(dx, dy) || 1;
   const nx = -dy / l, ny = dx / l;
-  const pts = [
+  poly(ctx, [
     { x: a.x + nx * wa * 0.5, y: a.y + ny * wa * 0.5 },
     { x: b.x + nx * wb * 0.5, y: b.y + ny * wb * 0.5 },
     { x: b.x - nx * wb * 0.5, y: b.y - ny * wb * 0.5 },
     { x: a.x - nx * wa * 0.5, y: a.y - ny * wa * 0.5 },
-  ];
-  poly(ctx, pts, fill, outline, lw);
-  // rounded joints
+  ], fill, outline, lw);
   ctx.beginPath(); ctx.arc(b.x, b.y, wb * 0.5, 0, TAU); ctx.fillStyle = fill; ctx.fill();
   ctx.beginPath(); ctx.arc(a.x, a.y, wa * 0.5, 0, TAU); ctx.fillStyle = fill; ctx.fill();
   if (lw > 0) {
@@ -231,10 +260,72 @@ function limb(ctx: Ctx, a: { x: number; y: number }, b: { x: number; y: number }
   }
 }
 
-function ellipse(ctx: Ctx, c: { x: number; y: number }, rx: number, ry: number, fill: string, outline: string, lw: number): void {
-  ctx.beginPath(); ctx.ellipse(c.x, c.y, Math.max(0.4, rx), Math.max(0.4, ry), 0, 0, TAU);
+/**
+ * Tapered limb segment with a cylindrical gradient. The cross-limb gradient axis
+ * is flipped when needed so the lit side always faces up-left, whatever the limb
+ * is doing — otherwise a swinging arm would light itself from the wrong side
+ * halfway through the walk cycle.
+ */
+function tube(ctx: Ctx, a: Pt, b: Pt, wa: number, wb: number, base: string, outline: string, lw: number): void {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const l = Math.hypot(dx, dy) || 1;
+  let nx = -dy / l, ny = dx / l;
+  if (nx * LIGHT_X + ny * LIGHT_Y < 0) { nx = -nx; ny = -ny; }
+  const w = Math.max(wa, wb);
+  const g = ctx.createLinearGradient(a.x + nx * w * 0.5, a.y + ny * w * 0.5, a.x - nx * w * 0.5, a.y - ny * w * 0.5);
+  g.addColorStop(0, tone(base, 0.30));
+  g.addColorStop(0.45, base);
+  g.addColorStop(1, tone(base, -0.28));
+  poly(ctx, [
+    { x: a.x + nx * wa * 0.5, y: a.y + ny * wa * 0.5 },
+    { x: b.x + nx * wb * 0.5, y: b.y + ny * wb * 0.5 },
+    { x: b.x - nx * wb * 0.5, y: b.y - ny * wb * 0.5 },
+    { x: a.x - nx * wa * 0.5, y: a.y - ny * wa * 0.5 },
+  ], g, outline, lw);
+  joint(ctx, b, wb * 0.5, base, outline, lw * 0.8);
+  joint(ctx, a, wa * 0.5, base, outline, lw * 0.8);
+}
+
+/** Rounded cap for a joint, shaded as a sphere so elbows and knees read round. */
+function joint(ctx: Ctx, c: Pt, r: number, base: string, outline: string, lw: number): void {
+  const g = ctx.createRadialGradient(c.x + LIGHT_X * r * 0.45, c.y + LIGHT_Y * r * 0.45, r * 0.12, c.x, c.y, r * 1.05);
+  g.addColorStop(0, tone(base, 0.34));
+  g.addColorStop(0.65, base);
+  g.addColorStop(1, tone(base, -0.26));
+  ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, TAU);
+  ctx.fillStyle = g; ctx.fill();
+  if (lw > 0) { ctx.lineWidth = lw; ctx.strokeStyle = outline; ctx.stroke(); }
+}
+
+/** Flat-ish panel (torso, vest, pouch) shaded across its own width. */
+function plate(ctx: Ctx, pts: Pt[], base: string, outline: string, lw: number, steep = 1): void {
+  let mnx = Infinity, mxx = -Infinity, mny = Infinity, mxy = -Infinity;
+  for (const p of pts) {
+    if (p.x < mnx) mnx = p.x; if (p.x > mxx) mxx = p.x;
+    if (p.y < mny) mny = p.y; if (p.y > mxy) mxy = p.y;
+  }
+  const w = Math.max(2, (mxx - mnx) * 0.5 + (mxy - mny) * 0.35 * steep);
+  const cx = (mnx + mxx) / 2, cy = (mny + mxy) / 2;
+  const g = ctx.createLinearGradient(cx + LIGHT_X * w, cy + LIGHT_Y * w, cx - LIGHT_X * w, cy - LIGHT_Y * w);
+  g.addColorStop(0, tone(base, 0.26));
+  g.addColorStop(0.5, base);
+  g.addColorStop(1, tone(base, -0.24));
+  poly(ctx, pts, g, outline, lw);
+}
+
+function ellipse(ctx: Ctx, c: Pt, rx: number, ry: number, fill: Fill, outline: string, lw: number, rot = 0): void {
+  ctx.beginPath(); ctx.ellipse(c.x, c.y, Math.max(0.4, rx), Math.max(0.4, ry), rot, 0, TAU);
   ctx.fillStyle = fill; ctx.fill();
   if (lw > 0) { ctx.lineWidth = lw; ctx.strokeStyle = outline; ctx.stroke(); }
+}
+
+/** Shaded sphere head/hand volume with an optional offset highlight. */
+function ball(ctx: Ctx, c: Pt, rx: number, ry: number, base: string, outline: string, lw: number): void {
+  const g = ctx.createRadialGradient(c.x + LIGHT_X * rx * 0.4, c.y + LIGHT_Y * ry * 0.45, Math.min(rx, ry) * 0.1, c.x, c.y, Math.max(rx, ry) * 1.1);
+  g.addColorStop(0, tone(base, 0.30));
+  g.addColorStop(0.6, base);
+  g.addColorStop(1, tone(base, -0.30));
+  ellipse(ctx, c, rx, ry, g, outline, lw);
 }
 
 interface Part { d: number; draw: () => void }
@@ -266,8 +357,11 @@ function zombieArms(p: Pose, phase: number, spec: FigureSpec): void {
   const s = Math.sin(phase * TAU), c = Math.cos(phase * TAU);
   p.armsOut = 1;
   const sy = spec.shamble;
-  p.handR = v3(0.30 + 0.05 * s, -0.16 - 0.05 * sy + 0.03 * c, 0.66 + 0.05 * s);
-  p.handR = v3(0.30 + 0.05 * s, -0.16 - 0.05 * sy + 0.03 * c, 0.66 + 0.05 * s);
+  // Drive both hands directly. Deriving the support hand from the weapon
+  // direction put both arms on one line, which from most facings collapsed the
+  // silhouette into a single bundle of limbs; opposing them reads as a lurch.
+  p.handR = v3(0.26 + 0.10 * s, -0.17 - 0.05 * sy + 0.03 * c, 0.58 + 0.09 * s);
+  p.handL = v3(0.20 + 0.10 * c, 0.16 + 0.04 * sy, 0.52 + 0.08 * c);
   p.noWeapon = true;
 }
 
@@ -382,30 +476,6 @@ export function poseFor(spec: FigureSpec, anim: AnimName, frame: number, phase: 
       else { p.handR = v3(0.02, -0.16, 0.70); p.weaponPitch = -0.5; p.weaponYaw = 0.3; }
       break;
     }
-    case 'death': {
-      const k = frame / 5;
-      const back = !zombie;
-      const ang = back ? -1.62 * k * k : 1.72 * k * (1.2 - 0.2 * k);
-      p.fall = ang;
-      p.fallAxis = Math.PI / 2;
-      p.crouch = 0.1 + 0.5 * Math.min(1, k * 2.2);
-      p.torsoLean = (zombie ? 0.35 : 0.1) + 0.5 * k;
-      p.headTilt = (zombie ? 0.3 : -0.2) * k;
-      if (zombie) { zombieArms(p, phase + k * 2, spec); p.handR = v3(0.30 - k * 0.30, -0.22 + k * 0.10, 0.62 - k * 0.5); p.handR = v3(0.30 - k * 0.30, -0.22 + k * 0.10, 0.62 - k * 0.5); }
-      else { p.handR = v3(0.10 - k * 0.2, -0.14 - k * 0.1, 0.62 - k * 0.45); p.weaponPitch = -0.2 - k * 0.5; p.weaponYaw = 0.2 + k * 0.4; }
-      // fold the legs under so the body collapses instead of hinging rigidly
-      p.hipL = -0.5 - 0.4 * k; p.kneeL = 0.5 + 1.5 * k;
-      p.hipR = -0.3 - 0.5 * k; p.kneeR = 0.4 + 1.6 * k;
-      p.bob = -0.02 * k;
-      // drift the pivot back toward the cell centre so nothing clips
-      const drift = back ? -0.14 * k : 0.16 * k;
-      p.shiftX = drift * Math.cos(p.fallAxis) * 0;
-      p.shiftX = 0;
-      p.shiftY = 0;
-      p.fallAxis = back ? Math.PI / 2 : Math.PI / 2;
-      p.scale = 1 - 0.06 * k;
-      break;
-    }
   }
   return p;
 }
@@ -423,7 +493,7 @@ export function renderFigure(ctx: Ctx, spec: FigureSpec, anim: AnimName, frame: 
   const D = (q: V3) => depthOf(q, pr);
   const col = spec.colors;
   const outline = col.outline;
-  const lw = 1.4;
+  const lw = 1.5;
   const scale = p.scale;
   const parts: Part[] = [];
 
@@ -432,16 +502,36 @@ export function renderFigure(ctx: Ctx, spec: FigureSpec, anim: AnimName, frame: 
   ctx.scale(scale, scale);
 
   // grounding shadow (baked, so it costs nothing at runtime)
-  ctx.beginPath();
-  ctx.ellipse(2, 1, 0.155 * BP * spec.build, 0.080 * BP * spec.build, 0, 0, TAU);
-  ctx.fillStyle = 'rgba(10,12,10,0.34)';
-  ctx.fill();
+  {
+    const rx = 0.175 * BP * spec.build;
+    const ry = 0.090 * BP * spec.build;
+    const g = ctx.createRadialGradient(3, 2, rx * 0.25, 3, 2, rx * 1.05);
+    g.addColorStop(0, 'rgba(9,11,9,0.42)');
+    g.addColorStop(0.65, 'rgba(9,11,9,0.26)');
+    g.addColorStop(1, 'rgba(9,11,9,0)');
+    ctx.beginPath(); ctx.ellipse(3, 2, rx, ry, 0, 0, TAU);
+    ctx.fillStyle = g; ctx.fill();
+  }
 
   const build2 = spec.build;
-  const torsoW = 0.20 * build2;
-  // Body-unit thicknesses converted to atlas pixels.
   const limbW = 0.062 * build2 * BP;
-  void torsoW;
+  const facing = Math.cos(rad);
+  // Figure-facing light: a soldier with its back to the camera sits in its own
+  // shade, which is most of what sells the eight directions as separate volumes.
+  const toneK = -0.05 - 0.055 * (1 - facing);
+  const T = (c: string) => tone(c, toneK);
+
+  // --- local body frames, so gear sits square on the torso instead of being
+  // hand-placed per direction
+  const shoLp = P(j.shoL!), shoRp = P(j.shoR!), pelp = P(j.pelvis!), chestp = P(j.chest!);
+  let upX = chestp.x - pelp.x, upY = chestp.y - pelp.y;
+  const upL = Math.hypot(upX, upY) || 1;
+  upX /= upL; upY /= upL;
+  let riX = shoLp.x - shoRp.x, riY = shoLp.y - shoRp.y;
+  const riL = Math.hypot(riX, riY) || 1;
+  riX /= riL; riY /= riL;
+  /** point at (right, up) from an origin, in the torso's screen frame */
+  const loc = (o: Pt, right: number, up: number): Pt => ({ x: o.x + riX * right + upX * up, y: o.y + riY * right + upY * up });
 
   // --- legs
   const legDraw = (hip: V3, knee: V3, ankle: V3, toe: V3, front: boolean) => {
@@ -449,20 +539,32 @@ export function renderFigure(ctx: Ctx, spec: FigureSpec, anim: AnimName, frame: 
     parts.push({
       d,
       draw: () => {
-        const A = P(hip), B = P(knee), C = P(ankle), E = P(toe);
-        limb(ctx, A, B, limbW * 1.25, limbW * 1.05, front ? col.legs : col.legsShade, outline, lw);
-        limb(ctx, B, C, limbW * 1.05, limbW * 0.85, front ? col.legs : col.legsShade, outline, lw);
-        // boot
-        const ang = Math.atan2(E.y - C.y, E.x - C.x);
+        const A = P(hip), B = P(knee), Cc = P(ankle), E = P(toe);
+        const base = front ? col.legs : mixc(col.legs, col.legsShade, 0.55);
+        tube(ctx, A, B, limbW * 1.34, limbW * 1.02, base, outline, lw);
+        tube(ctx, B, Cc, limbW * 1.02, limbW * 0.80, base, outline, lw);
+        // knee pad
+        if (spec.kind === 'human') {
+          joint(ctx, B, limbW * 0.62, col.gear, outline, lw * 0.7);
+        }
+        // boot: shape it into a sole plus a heel block rather than a wedge
+        const ang = Math.atan2(E.y - Cc.y, E.x - Cc.x);
         ctx.save();
-        ctx.translate(C.x, C.y);
+        ctx.translate(Cc.x, Cc.y);
         ctx.rotate(ang);
-        poly(ctx, [
-          { x: -limbW * 0.55, y: -limbW * 0.55 },
-          { x: limbW * 1.5, y: -limbW * 0.5 },
-          { x: limbW * 1.6, y: limbW * 0.55 },
-          { x: -limbW * 0.55, y: limbW * 0.6 },
-        ], col.boots, outline, lw * 0.8);
+        plate(ctx, [
+          { x: -limbW * 0.62, y: -limbW * 0.62 },
+          { x: limbW * 1.45, y: -limbW * 0.55 },
+          { x: limbW * 1.62, y: limbW * 0.34 },
+          { x: -limbW * 0.70, y: limbW * 0.56 },
+        ], col.boots, outline, lw * 0.75, 0.5);
+        // sole
+        ctx.beginPath();
+        ctx.moveTo(-limbW * 0.70, limbW * 0.56);
+        ctx.lineTo(limbW * 1.62, limbW * 0.34);
+        ctx.lineWidth = limbW * 0.30;
+        ctx.strokeStyle = tone(col.boots, -0.42);
+        ctx.stroke();
         ctx.restore();
       },
     });
@@ -472,22 +574,27 @@ export function renderFigure(ctx: Ctx, spec: FigureSpec, anim: AnimName, frame: 
 
   // --- backpack
   if (spec.backpack > 0.01) {
-    const hw = 0.072 * build2;
-    const lo = v3(-0.155 - spec.backpack * 0.05, 0, 0.50);
-    const hi = v3(-0.075 - spec.backpack * 0.05, 0, 0.755);
+    const hw = 0.080 * build2;
+    const lo = v3(-0.150 - spec.backpack * 0.05, 0, 0.505);
+    const hi = v3(-0.070 - spec.backpack * 0.05, 0, 0.760);
     parts.push({
       d: D(lo) - 0.06,
       draw: () => {
-        const c000 = P(add(lo, v3(0, -hw, 0))), c100 = P(add(lo, v3(0, hw, 0)));
-        const c011 = P(add(hi, v3(0, -hw, 0))), c111 = P(add(hi, v3(0, hw, 0)));
-        const face = [c000, c100, c111, c011];
-        poly(ctx, face, col.gear, outline, lw * 0.8);
-        // strap hint
+        const bl = loc(P(lo), -0.055 * build2 * BP, 0);
+        const br = loc(P(lo), 0.055 * build2 * BP, 0);
+        const tl = loc(P(hi), -0.055 * build2 * BP, 0);
+        const tr = loc(P(hi), 0.055 * build2 * BP, 0);
+        plate(ctx, [tl, tr, br, bl], col.gear, outline, lw * 0.8);
+        // top flap and buckles
         ctx.save();
         ctx.beginPath();
-        ctx.moveTo(c111.x, c111.y); ctx.lineTo(c011.x, c011.y);
-        ctx.strokeStyle = 'rgba(15,17,15,0.5)'; ctx.lineWidth = lw * 0.8; ctx.stroke();
+        ctx.moveTo(tl.x, tl.y); ctx.lineTo(tr.x, tr.y);
+        ctx.strokeStyle = tone(col.gear, -0.34); ctx.lineWidth = limbW * 0.42; ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(bl.x, bl.y); ctx.lineTo(br.x, br.y);
+        ctx.strokeStyle = tone(col.gear, -0.2); ctx.lineWidth = limbW * 0.3; ctx.stroke();
         ctx.restore();
+        void hw;
       },
     });
   }
@@ -498,26 +605,61 @@ export function renderFigure(ctx: Ctx, spec: FigureSpec, anim: AnimName, frame: 
     parts.push({
       d,
       draw: () => {
-        const hipL = P(add(j.pelvis!, rotZ(rotY(v3(0, 0.072 * build2, 0), p.torsoLean), p.torsoTwist)));
-        const hipR = P(add(j.pelvis!, rotZ(rotY(v3(0, -0.072 * build2, 0), p.torsoLean), p.torsoTwist)));
-        const shoL = P(j.shoL!);
-        const shoR = P(j.shoR!);
-        poly(ctx, [shoL, shoR, hipR, hipL], col.torso, outline, lw);
-        // shading on the rear half
-        const mid = P(j.chest!);
+        const hipL = loc(pelp, 0.078 * build2 * BP, 0);
+        const hipR = loc(pelp, -0.078 * build2 * BP, 0);
+        const wstL = loc(pelp, 0.070 * build2 * BP, 0.118 * BP);
+        const wstR = loc(pelp, -0.070 * build2 * BP, 0.118 * BP);
+        const cstL = loc(pelp, 0.076 * build2 * BP, 0.235 * BP);
+        const cstR = loc(pelp, -0.076 * build2 * BP, 0.235 * BP);
+        const body = [shoLp, cstL, wstL, hipL, hipR, wstR, cstR, shoRp];
+        plate(ctx, body, T(col.torso), outline, lw);
+        // shoulder shelf: a lit cap on each shoulder so the silhouette reads
+        joint(ctx, shoLp, limbW * 0.62, T(col.torso), outline, lw * 0.7);
+        joint(ctx, shoRp, limbW * 0.58, mixc(col.torso, col.torsoShade, 0.4), outline, lw * 0.7);
+        // vest / plate carrier on the chest: 'up' runs toward the shoulders, so
+        // both edges sit below the chest joint
+        const vw = 0.060 * build2 * BP;
+        const vTop = -0.050 * BP, vHem = -0.235 * BP;
+        plate(ctx, [
+          loc(chestp, vw, vTop),
+          loc(chestp, -vw, vTop),
+          loc(chestp, -vw * 0.92, vHem),
+          loc(chestp, vw * 0.92, vHem),
+        ], T(mixc(col.gear, col.torso, 0.25)), outline, lw * 0.75, 0.6);
+        // pouches along the vest hem
+        for (const s of [-1, 0, 1]) {
+          const c = loc(chestp, s * vw * 0.55, vHem + 0.012 * BP);
+          ellipse(ctx, c, vw * 0.28, 0.026 * BP, tone(col.gear, -0.14), outline, lw * 0.55);
+        }
+        // shoulder straps from the vest up over the shoulders
         ctx.save();
-        ctx.globalAlpha = 0.28;
-        poly(ctx, [mid, shoR, hipR, { x: (hipR.x + hipL.x) / 2, y: (hipR.y + hipL.y) / 2 }], col.torsoShade, 'transparent', 0);
+        ctx.strokeStyle = tone(col.gear, -0.24);
+        ctx.lineWidth = limbW * 0.34;
+        for (const s of [-1, 1]) {
+          const a0 = loc(chestp, s * vw * 0.70, vTop);
+          const a1 = loc(pelp, s * 0.068 * build2 * BP, 0.268 * BP);
+          ctx.beginPath(); ctx.moveTo(a0.x, a0.y); ctx.lineTo(a1.x, a1.y); ctx.stroke();
+        }
         ctx.restore();
         if (spec.belt) {
-          const a = P(add(j.pelvis!, v3(0, 0, 0.045)));
+          ctx.save();
+          ctx.strokeStyle = tone(col.gear, -0.3);
+          ctx.lineWidth = limbW * 0.5;
           ctx.beginPath();
-          ctx.moveTo(hipL.x, hipL.y - 2);
-          ctx.lineTo(hipR.x, hipR.y - 2);
-          ctx.lineWidth = limbW * 0.9;
-          ctx.strokeStyle = col.gear;
-          ctx.stroke();
-          void a;
+          const b0 = loc(pelp, 0.076 * build2 * BP, 0.030 * BP);
+          const b1 = loc(pelp, -0.076 * build2 * BP, 0.030 * BP);
+          ctx.moveTo(b0.x, b0.y); ctx.lineTo(b1.x, b1.y); ctx.stroke();
+          ellipse(ctx, loc(pelp, 0, 0.030 * BP), limbW * 0.28, limbW * 0.30, tone(col.accent, 0.05), outline, lw * 0.5);
+          ctx.restore();
+        }
+        if (spec.kind === 'zombie') {
+          // torn shirt hem and a blood stain
+          ctx.save();
+          ctx.fillStyle = 'rgba(70,26,24,0.42)';
+          ctx.beginPath();
+          ctx.ellipse(loc(chestp, -0.02 * BP, 0.10 * BP).x, loc(chestp, -0.02 * BP, 0.10 * BP).y, vw * 0.7, 0.052 * BP, 0.3, 0, TAU);
+          ctx.fill();
+          ctx.restore();
         }
       },
     });
@@ -529,11 +671,29 @@ export function renderFigure(ctx: Ctx, spec: FigureSpec, anim: AnimName, frame: 
     parts.push({
       d,
       draw: () => {
-        const A = P(sho), B = P(elbow), C = P(hand);
-        const c1 = front ? col.torso : col.torsoShade;
-        limb(ctx, A, B, limbW * 1.15, limbW * 0.95, c1, outline, lw);
-        limb(ctx, B, C, limbW * 0.95, limbW * 0.8, c1, outline, lw);
-        ellipse(ctx, C, limbW * 0.62, limbW * 0.62, col.skin, outline, lw * 0.8);
+        const A = P(sho), B = P(elbow), Cc = P(hand);
+        const base = front ? T(col.torso) : mixc(col.torso, col.torsoShade, 0.5);
+        tube(ctx, A, B, limbW * 1.22, limbW * 0.96, base, outline, lw);
+        tube(ctx, B, Cc, limbW * 0.94, limbW * 0.78, base, outline, lw);
+        // unit armband, worn on the upper arm
+        if (front && spec.armband) {
+          const mid = { x: lerp(A.x, B.x, 0.62), y: lerp(A.y, B.y, 0.62) };
+          ctx.save();
+          ctx.translate(mid.x, mid.y);
+          ctx.rotate(Math.atan2(B.y - A.y, B.x - A.x));
+          ctx.fillStyle = spec.armband;
+          ctx.fillRect(-limbW * 0.34, -limbW * 0.70, limbW * 0.68, limbW * 0.44);
+          ctx.restore();
+        }
+        // glove: palm plus a thumb nub so the hand is not just a disc
+        const ang = Math.atan2(Cc.y - B.y, Cc.x - B.x);
+        ctx.save();
+        ctx.translate(Cc.x, Cc.y);
+        ctx.rotate(ang);
+        ball(ctx, { x: 0, y: 0 }, limbW * 0.60, limbW * 0.56, spec.kind === 'zombie' ? T(col.skin) : tone(col.gear, -0.16), outline, lw * 0.7);
+        ellipse(ctx, { x: limbW * 0.30, y: -limbW * 0.44 }, limbW * 0.30, limbW * 0.19, spec.kind === 'zombie' ? T(col.skin) : tone(col.gear, -0.26), outline, lw * 0.5, -0.5);
+        ctx.restore();
+        if (spec.kind === 'human') joint(ctx, B, limbW * 0.52, tone(col.gear, -0.06), outline, lw * 0.6);
       },
     });
   };
@@ -547,64 +707,109 @@ export function renderFigure(ctx: Ctx, spec: FigureSpec, anim: AnimName, frame: 
       d,
       draw: () => {
         const H = P(j.head!);
-        const r = spec.headR * BP;
-        const ry = spec.headR * CHAR_H;
-        // neck
         const N = P(j.neck!);
-        limb(ctx, N, H, limbW * 0.8, limbW * 0.8, col.skinShade, outline, lw * 0.8);
-        ellipse(ctx, H, r, ry, col.skin, outline, lw);
-        // face hint: darker lower half + eyes when facing the camera
-        const facing = Math.cos(rad);
+        const r = spec.headR * BP;
+        const ry = spec.headR * CHAR_H * (spec.height > 0.99 ? 1.12 : 1.0);
+        // neck
+        tube(ctx, N, H, limbW * 0.86, limbW * 0.78, tone(col.skinShade, -0.04), outline, lw * 0.7);
+        // skull: cranium, jaw, ear
+        ball(ctx, H, r, ry, T(col.skin), outline, lw);
+        ellipse(ctx, { x: H.x + riX * r * 0.30, y: H.y + ry * 0.34 }, r * 0.62, ry * 0.40, tone(col.skin, -0.10), 'transparent', 0);
+        ellipse(ctx, { x: H.x - riX * r * 0.86, y: H.y + ry * 0.02 }, r * 0.24, ry * 0.30, tone(col.skin, -0.16), outline, lw * 0.4);
+        // hair under the headgear
+        ellipse(ctx, { x: H.x, y: H.y - ry * 0.42 }, r * 1.02, ry * 0.46, mixc(col.hair, col.skin, 0.2), 'transparent', 0);
+        // face: brow shade, eyes, mouth
         ctx.save();
         ctx.beginPath();
-        ctx.ellipse(H.x, H.y + ry * 0.18, r * 0.92, ry * 0.72, 0, 0, TAU);
-        ctx.fillStyle = 'rgba(0,0,0,0.13)';
+        ctx.ellipse(H.x, H.y + ry * 0.20, r * 0.90, ry * 0.70, 0, 0, TAU);
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
         ctx.fill();
-        if (Math.cos(rad + Math.PI / 2) > -0.2) {
-          ctx.fillStyle = 'rgba(20,18,16,0.75)';
-          const ex = r * 0.34, ey = -ry * 0.12;
-          ctx.beginPath(); ctx.ellipse(H.x - ex * facing, H.y + ey, r * 0.13, ry * 0.13, 0, 0, TAU); ctx.fill();
-          ctx.beginPath(); ctx.ellipse(H.x + ex * facing, H.y + ey, r * 0.13, ry * 0.13, 0, 0, TAU); ctx.fill();
+        if (facing > -0.15) {
+          const ex = r * 0.36, ey = -ry * 0.06;
+          ctx.fillStyle = 'rgba(18,16,14,0.8)';
+          ctx.beginPath(); ctx.ellipse(H.x - ex * facing, H.y + ey, r * 0.145, ry * 0.115, 0, 0, TAU); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(H.x + ex * facing, H.y + ey, r * 0.145, ry * 0.115, 0, 0, TAU); ctx.fill();
+          // nose
+          ctx.fillStyle = 'rgba(0,0,0,0.14)';
+          ctx.beginPath();
+          ctx.ellipse(H.x + facing * r * 0.05, H.y + ry * 0.20, r * 0.16, ry * 0.13, 0, 0, TAU);
+          ctx.fill();
         }
         ctx.restore();
-        // headgear
-        if (spec.headgear === 'helmet') {
+        if (spec.kind === 'zombie') {
+          // slack jaw and blood down the chin
+          ellipse(ctx, { x: H.x, y: H.y + ry * 0.52 }, r * 0.58, ry * 0.30, tone(col.skinShade, -0.14), 'transparent', 0);
+          ctx.fillStyle = 'rgba(84,26,22,0.55)';
           ctx.beginPath();
-          ctx.ellipse(H.x, H.y - ry * 0.14, r * 1.22, ry * 1.02, 0, Math.PI, TAU);
-          ctx.fillStyle = col.gear;
+          ctx.ellipse(H.x + r * 0.16, H.y + ry * 0.60, r * 0.42, ry * 0.26, 0.35, 0, TAU);
+          ctx.fill();
+        }
+        // headgear
+        const gcol = T(col.gear);
+        if (spec.headgear === 'helmet') {
+          // dome, cover band, brim, centre ridge
+          ctx.beginPath();
+          ctx.ellipse(H.x, H.y - ry * 0.10, r * 1.32, ry * 1.12, 0, Math.PI, TAU);
+          ctx.fillStyle = gcol;
           ctx.fill();
           ctx.lineWidth = lw * 0.9; ctx.strokeStyle = outline; ctx.stroke();
+          ctx.save();
           ctx.beginPath();
-          ctx.moveTo(H.x - r * 1.3, H.y - ry * 0.12);
-          ctx.lineTo(H.x + r * 1.3, H.y - ry * 0.12);
-          ctx.lineWidth = lw * 1.4; ctx.strokeStyle = col.gear; ctx.stroke();
+          ctx.ellipse(H.x, H.y - ry * 0.10, r * 1.32, ry * 1.12, 0, Math.PI * 1.06, Math.PI * 1.94);
+          ctx.strokeStyle = tone(col.gear, -0.34);
+          ctx.lineWidth = ry * 0.30;
+          ctx.stroke();
+          ctx.restore();
+          // brim
+          ctx.beginPath();
+          ctx.ellipse(H.x, H.y - ry * 0.12, r * 1.36, ry * 0.26, 0, 0, TAU);
+          ctx.fillStyle = tone(col.gear, -0.10);
+          ctx.fill();
+          ctx.lineWidth = lw * 0.7; ctx.strokeStyle = outline; ctx.stroke();
+          // centre ridge highlight
+          ctx.beginPath();
+          ctx.moveTo(H.x - riX * r * 0.9, H.y - ry * 0.95);
+          ctx.lineTo(H.x + riX * r * 0.9, H.y - ry * 0.95);
+          ctx.strokeStyle = tone(col.gear, 0.22);
+          ctx.lineWidth = lw * 0.9;
+          ctx.stroke();
+          // chin strap
+          ctx.beginPath();
+          ctx.moveTo(H.x - riX * r * 1.28, H.y - ry * 0.10);
+          ctx.lineTo(H.x - riX * r * 0.44, H.y + ry * 0.86);
+          ctx.strokeStyle = tone(col.gear, -0.4);
+          ctx.lineWidth = lw * 0.6;
+          ctx.stroke();
         } else if (spec.headgear === 'cap') {
           ctx.beginPath();
-          ctx.ellipse(H.x, H.y - ry * 0.2, r * 1.12, ry * 0.86, 0, Math.PI, TAU);
-          ctx.fillStyle = col.gear; ctx.fill();
+          ctx.ellipse(H.x, H.y - ry * 0.24, r * 1.16, ry * 0.90, 0, Math.PI, TAU);
+          ctx.fillStyle = gcol; ctx.fill();
           ctx.lineWidth = lw * 0.8; ctx.strokeStyle = outline; ctx.stroke();
+          // visor points the way the figure faces
+          const vd = loc({ x: H.x, y: H.y }, facing * r * 1.9, -ry * 0.16);
           ctx.beginPath();
-          ctx.moveTo(H.x, H.y - ry * 0.2);
-          ctx.lineTo(H.x + r * 1.5 * facing, H.y - ry * 0.05);
-          ctx.lineWidth = lw * 1.6; ctx.strokeStyle = col.gear; ctx.stroke();
+          ctx.moveTo(H.x - riX * r * 1.05, H.y - ry * 0.22);
+          ctx.lineTo(H.x + riX * r * 1.05, H.y - ry * 0.22);
+          ctx.lineTo(vd.x, vd.y);
+          ctx.closePath();
+          ctx.fillStyle = tone(col.gear, -0.16); ctx.fill();
+          ctx.lineWidth = lw * 0.6; ctx.strokeStyle = outline; ctx.stroke();
         } else if (spec.headgear === 'med') {
           ctx.beginPath();
-          ctx.ellipse(H.x, H.y - ry * 0.16, r * 1.2, ry * 0.98, 0, Math.PI, TAU);
-          ctx.fillStyle = col.gear; ctx.fill();
+          ctx.ellipse(H.x, H.y - ry * 0.14, r * 1.30, ry * 1.06, 0, Math.PI, TAU);
+          ctx.fillStyle = gcol; ctx.fill();
           ctx.lineWidth = lw * 0.9; ctx.strokeStyle = outline; ctx.stroke();
           ctx.fillStyle = '#c8524c';
-          ctx.fillRect(H.x - r * 0.55, H.y - ry * 0.62, r * 1.1, ry * 0.2);
-          ctx.fillRect(H.x - r * 0.14, H.y - ry * 0.9, r * 0.28, ry * 0.62);
+          ctx.fillRect(H.x - r * 0.60, H.y - ry * 0.72, r * 1.20, ry * 0.22);
+          ctx.fillRect(H.x - r * 0.15, H.y - ry * 1.02, r * 0.30, ry * 0.68);
         } else if (spec.headgear === 'beret') {
           ctx.beginPath();
-          ctx.ellipse(H.x - r * 0.1, H.y - ry * 0.34, r * 1.15, ry * 0.72, 0, Math.PI, TAU);
+          ctx.ellipse(H.x - riX * r * 0.22, H.y - ry * 0.46, r * 1.22, ry * 0.72, -0.22, 0, TAU);
           ctx.fillStyle = col.accent; ctx.fill();
-        }
-        if (spec.kind === 'zombie') {
-          ctx.fillStyle = 'rgba(70,26,24,0.5)';
-          ctx.beginPath();
-          ctx.ellipse(H.x + r * 0.2, H.y + ry * 0.42, r * 0.5, ry * 0.3, 0.4, 0, TAU);
-          ctx.fill();
+          ctx.lineWidth = lw * 0.6; ctx.strokeStyle = outline; ctx.stroke();
+        } else if (spec.kind === 'zombie') {
+          // matted hair
+          ellipse(ctx, { x: H.x, y: H.y - ry * 0.34 }, r * 1.10, ry * 0.52, tone(col.hair, -0.06), 'transparent', 0);
         }
       },
     });
@@ -624,32 +829,83 @@ export function renderFigure(ctx: Ctx, spec: FigureSpec, anim: AnimName, frame: 
         const A = P(add(grip, mul(wdir, -cfg.back)));
         const B = P(muzzle);
         const hand = P(grip);
-        // stock + receiver
-        limb(ctx, A, hand, limbW * 0.75, limbW * 0.7, col.weaponDark, outline, lw * 0.7);
-        limb(ctx, hand, B, limbW * 0.62, limbW * 0.38, col.weapon, outline, lw * 0.7);
         const ang = Math.atan2(B.y - A.y, B.x - A.x);
-        // magazine
+        const len = Math.hypot(B.x - A.x, B.y - A.y) || 1;
+        const ux = (B.x - A.x) / len, uy = (B.y - A.y) / len;
+        const at = (f: number, off: number): Pt => ({ x: A.x + ux * len * f - uy * off, y: A.y + uy * len * f + ux * off });
         ctx.save();
-        ctx.translate(hand.x, hand.y);
-        ctx.rotate(ang);
+        // stock
         poly(ctx, [
-          { x: -limbW * 0.2, y: 0 }, { x: limbW * 0.5, y: 0 },
-          { x: limbW * 0.4, y: limbW * 1.7 }, { x: -limbW * 0.3, y: limbW * 1.6 },
+          at(0.00, -limbW * 0.42), at(0.24, -limbW * 0.30),
+          at(0.24, limbW * 0.34), at(0.02, limbW * 0.52),
+        ], tone(col.weaponDark, -0.06), outline, lw * 0.6);
+        // receiver through the grip
+        poly(ctx, [
+          at(0.22, -limbW * 0.34), at(0.48, -limbW * 0.30),
+          at(0.48, limbW * 0.30), at(0.22, limbW * 0.34),
+        ], tone(col.weaponDark, 0.10), outline, lw * 0.6);
+        // handguard
+        poly(ctx, [
+          at(0.46, -limbW * 0.28), at(0.74, -limbW * 0.24),
+          at(0.74, limbW * 0.26), at(0.46, limbW * 0.28),
         ], col.weaponDark, outline, lw * 0.6);
+        // barrel
+        poly(ctx, [
+          at(0.72, -limbW * 0.14), at(1.00, -limbW * 0.12),
+          at(1.00, limbW * 0.12), at(0.72, limbW * 0.14),
+        ], tone(col.weapon, -0.06), outline, lw * 0.5);
+        // muzzle device
+        ellipse(ctx, at(0.99, 0), limbW * 0.19, limbW * 0.26, '#1e201d', 'transparent', 0);
+        // front sight
+        ctx.beginPath();
+        ctx.moveTo(at(0.80, -limbW * 0.22).x, at(0.80, -limbW * 0.22).y);
+        ctx.lineTo(at(0.80, -limbW * 0.78).x, at(0.80, -limbW * 0.78).y);
+        ctx.lineWidth = lw * 0.7; ctx.strokeStyle = tone(col.weaponDark, -0.2); ctx.stroke();
+        // pistol grip and magazine
+        poly(ctx, [
+          at(0.30, limbW * 0.28), at(0.40, limbW * 0.26),
+          at(0.36, limbW * 1.30), at(0.24, limbW * 1.24),
+        ], tone(col.weaponDark, -0.12), outline, lw * 0.5);
+        poly(ctx, [
+          at(0.42, limbW * 0.30), at(0.60, limbW * 0.28),
+          at(0.56, limbW * 1.55), at(0.34, limbW * 1.62),
+        ], tone(col.weaponDark, -0.04), outline, lw * 0.55);
+        // optic / sight block with a lens glint
+        if (cfg.scope) {
+          const s0 = at(0.40, -limbW * 0.44), s1 = at(0.66, -limbW * 0.40);
+          ctx.beginPath();
+          ctx.moveTo(s0.x, s0.y - limbW * 0.34); ctx.lineTo(s1.x, s1.y - limbW * 0.34);
+          ctx.lineTo(s1.x, s1.y + limbW * 0.10); ctx.lineTo(s0.x, s0.y + limbW * 0.10);
+          ctx.closePath();
+          ctx.fillStyle = tone(col.weaponDark, -0.22); ctx.fill();
+          ctx.lineWidth = lw * 0.5; ctx.strokeStyle = outline; ctx.stroke();
+          ellipse(ctx, { x: s0.x, y: s0.y - limbW * 0.12 }, limbW * 0.16, limbW * 0.22, '#7d8f96', 'transparent', 0);
+        } else {
+          const r0 = at(0.52, -limbW * 0.36);
+          ctx.beginPath();
+          ctx.moveTo(r0.x - uy * limbW * 0.18, r0.y + ux * limbW * 0.18);
+          ctx.lineTo(r0.x - uy * limbW * 0.18, r0.y + ux * limbW * 0.18 - limbW * 0.52);
+          ctx.lineWidth = limbW * 0.26; ctx.strokeStyle = tone(col.weaponDark, -0.24); ctx.stroke();
+        }
         if (cfg.bipod) {
           ctx.beginPath();
-          ctx.moveTo(limbW * 1.6, 0); ctx.lineTo(limbW * 2.6, limbW * 1.3);
-          ctx.moveTo(limbW * 1.6, 0); ctx.lineTo(limbW * 0.8, limbW * 1.5);
-          ctx.lineWidth = lw * 0.7; ctx.strokeStyle = col.weaponDark; ctx.stroke();
+          ctx.moveTo(at(0.70, 0).x, at(0.70, 0).y);
+          ctx.lineTo(at(0.66, limbW * 1.10).x, at(0.66, limbW * 1.10).y);
+          ctx.moveTo(at(0.70, 0).x, at(0.70, 0).y);
+          ctx.lineTo(at(0.74, -limbW * 1.02).x, at(0.74, -limbW * 1.02).y);
+          ctx.lineWidth = lw * 0.7; ctx.strokeStyle = tone(col.weaponDark, -0.15); ctx.stroke();
         }
+        // sling from the stock up over the shoulder
+        ctx.beginPath();
+        ctx.moveTo(at(0.06, 0).x, at(0.06, 0).y);
+        const sl = loc(chestp, 0.052 * build2 * BP, 0.250 * BP);
+        ctx.lineTo(sl.x, sl.y);
+        ctx.strokeStyle = 'rgba(24,26,24,0.55)';
+        ctx.lineWidth = lw * 0.6;
+        ctx.stroke();
         ctx.restore();
-        if (cfg.scope) {
-          const mid = P(add(grip, mul(wdir, cfg.len * 0.42)));
-          ellipse(ctx, { x: mid.x, y: mid.y - limbW * 0.7 }, limbW * 0.5, limbW * 0.34, col.weaponDark, outline, lw * 0.5);
-        }
+        void ang; void hand;
         muzzleScreen = B;
-        // muzzle ring
-        ellipse(ctx, B, limbW * 0.3, limbW * 0.3, '#22241f', 'transparent', 0);
       },
     });
   } else {

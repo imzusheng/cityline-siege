@@ -14,7 +14,7 @@ import { SpriteBatch, SPRITE_STRIDE } from './sprites';
 import { buildFacadeTexture, bakeGround, buildDetailTexture, GROUND_TEX_W, GROUND_TEX_H } from './textures';
 import { buildBuildingMesh, VERTEX_FLOATS } from './buildings';
 import { buildAtlases, unitCellIndex, UNIT_CELL, UNIT_COLS, UNIT_ATLAS, PROP_CELL, PROP_ATLAS, PROP_ANCHOR_Y, PROP_WORLD_SIZE, PX_PER_SWU, type AtlasLayout } from './atlas';
-import { CHAR_H, CELL } from './figures';
+import { CHAR_H, CELL, FEET_ROW } from './figures';
 import { DIR_BASE, DIR_MIRROR, DIR_TO_BASE, TOTAL_FRAMES, animFrameIndex, dirBucket } from '../entities/anim';
 import { HUMAN_HEIGHT, ZSCALE, ZOMBIE_HEIGHT, BRUTE_HEIGHT } from '../core/config';
 import type { World } from '../simulation/world';
@@ -201,9 +201,12 @@ export class Renderer {
 
     // ---- sprites
     this.units = new SpriteBatch(gl, 4200);
-    this.units.topRatio = 78 / CELL;
-    this.units.botRatio = (CELL - 78) / CELL;
-    this.units.minPx = 6.0;
+    this.units.topRatio = FEET_ROW / CELL;
+    this.units.botRatio = (CELL - FEET_ROW) / CELL;
+    // The cell carries more transparent padding than the figure needs (the rifle
+    // reaches far to the side), so the far-zoom floor is raised to keep the
+    // figure itself at the same size it was before the cell grew.
+    this.units.minPx = 8.5;
     this.units.texture = this.makeTexture(gl, this.atlas.unitCanvas, UNIT_ATLAS);
 
     this.groundSprites = new SpriteBatch(gl, 4200);
@@ -269,8 +272,9 @@ export class Renderer {
     gl.viewport(0, 0, cw, ch);
   }
 
-  render(world: World): void {
+  render(world: World, alpha = 1): void {
     const gl = this.gl;
+    this.alpha = alpha;
     const c = this.camera;
     gl.clearColor(0.055, 0.06, 0.058, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -312,20 +316,29 @@ export class Renderer {
     // rooftops: soldiers are depth-tested against the buildings, and anything
     // that ends up hidden is re-drawn as a translucent x-ray silhouette
     // (depthFunc GREATER draws only the fragments that failed the test).
-    this.buildGroundSprites(world);
+    //
+    // That silhouette pass runs here, while the depth buffer holds buildings and
+    // nothing else. Run it later and the test also catches pixels belonging to
+    // props, corpses and neighbouring soldiers, so a packed line or a soldier
+    // standing on a body pile dissolves into ghosts — and those ghosts flicker
+    // as the crowd shifts, which reads as the whole line twitching.
+    this.buildUnitSprites(world);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.useProgram(this.units.prog);
+    this.setCam(this.units.u);
+    this.units.flush(this.units.count, 'xray');
+
+    this.buildGroundSprites(world);
     gl.useProgram(this.groundSprites.prog);
     this.setCam(this.groundSprites.u);
     this.groundSprites.flush();
     this.stats.props = this.propCount;
     this.stats.corpses = world.corpses.length;
 
-    this.buildUnitSprites(world);
     gl.useProgram(this.units.prog);
     this.setCam(this.units.u);
     this.units.flush(this.units.count, 'solid');
-    this.units.flush(this.units.count, 'xray');
     this.stats.units = this.units.count;
 
     this.buildFx(world);
@@ -344,6 +357,8 @@ export class Renderer {
   }
 
   private propCount = 0;
+  /** how far the current frame sits between the previous and current tick */
+  private alpha = 1;
 
   private buildGroundSprites(world: World): void {
     const b = this.groundSprites;
@@ -419,10 +434,16 @@ export class Renderer {
       const col = cell % UNIT_COLS, row = (cell / UNIT_COLS) | 0;
       const u0 = mirror ? (col + 1) * cellUV : col * cellUV;
       const du = mirror ? -cellUV : cellUV;
+      const px = h.prevX + (h.x - h.prevX) * this.alpha;
+      const py = h.prevY + (h.y - h.prevY) * this.alpha;
       const heightScale = HUMAN_HEIGHT / 10.4;
       let tint = 1;
       if (h.anim.name === 'hit') tint = 1.25;
-      b.push(h.x, h.y, UNIT_SWU * heightScale, u0, row * cellUV, du, cellUV, tint, tint, tint, 1, 6.0, 0);
+      // A fallen unit keeps its last pose and fades out over the corpse prop the
+      // simulation already dropped underneath it, rather than carrying on its
+      // walk cycle on the spot for a second.
+      const fade = h.alive ? 1 : Math.max(0, 1 - h.deadT / 0.45);
+      b.push(px, py, UNIT_SWU * heightScale, u0, row * cellUV, du, cellUV, tint, tint, tint, fade, 8.5, 0);
     }
 
     const zombies = world.zombies;
@@ -445,7 +466,10 @@ export class Renderer {
         const v = 0.92 + z.seed * 0.16;
         r = v; g = v; bl = v;
       }
-      b.push(z.x, z.y, UNIT_SWU * hs, u0, row * cellUV, du, cellUV, r, g, bl, 1, 5.2, 0.02);
+      const zAlpha = z.alive ? 1 : Math.max(0, 1 - z.deadT / 0.45);
+      const zx = z.prevX + (z.x - z.prevX) * this.alpha;
+      const zy = z.prevY + (z.y - z.prevY) * this.alpha;
+      b.push(zx, zy, UNIT_SWU * hs, u0, row * cellUV, du, cellUV, r, g, bl, zAlpha, 7.4, 0.02);
     }
   }
 
@@ -474,14 +498,16 @@ export class Renderer {
       let mx = this.atlas.muzzle[mi]!;
       const my = this.atlas.muzzle[mi + 1]!;
       if (mirror) mx = -mx;
-      const a = cam.worldToScreen(h.x, h.y);
+      const ix = h.prevX + (h.x - h.prevX) * this.alpha;
+      const iy = h.prevY + (h.y - h.prevY) * this.alpha;
+      const a = cam.worldToScreen(ix, iy);
       const muzzleX = a.x + mx * scale;
       const muzzleY = a.y + my * scale;
       const life = h.cls === 'gunner' ? 0.07 : 0.1;
       const k = clamp01(h.shotT / life);
       if (k > 0.42 && n < capQuads) {
         const size = Math.max(5, Math.min(26, (7 + 6 * k) * Math.max(0.5, cam.szoom * 0.34)));
-        n = this.emitQuad(n, h.x, h.y,
+        n = this.emitQuad(n, ix, iy,
           muzzleX - size * 0.5 - a.x, muzzleY - size * 0.5 - a.y, size, size,
           1.0, 0.84 * k + 0.1, 0.46 * k + 0.05, 0.85 * k);
       }
@@ -497,12 +523,12 @@ export class Renderer {
         const nx = -dy / l * 0.85, ny = dx / l * 0.85;
         const m = (1 - k) * 0.55;
         const x0 = muzzleX + dx * m, y0 = muzzleY + dy * m;
-        n = this.emitTri(n, h.x, h.y,
+        n = this.emitTri(n, ix, iy,
           x0 + nx - a.x, y0 + ny - a.y,
           tgt.x + nx - a.x, tgt.y + ny - a.y,
           tgt.x - nx - a.x, tgt.y - ny - a.y,
           1.0, 0.93, 0.74, 0.55 * k);
-        n = this.emitTri(n, h.x, h.y,
+        n = this.emitTri(n, ix, iy,
           x0 + nx - a.x, y0 + ny - a.y,
           tgt.x - nx - a.x, tgt.y - ny - a.y,
           x0 - nx - a.x, y0 - ny - a.y,

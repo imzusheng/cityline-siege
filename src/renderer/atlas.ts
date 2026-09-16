@@ -17,9 +17,10 @@ import { CELL, FEET_ROW, CHAR_H, FIGURE_SPECS, renderFigure, renderCorpse, type 
 export const PX_PER_SWU = CHAR_H / (HUMAN_HEIGHT * ZSCALE);
 
 export const UNIT_CELL = CELL;
-export const UNIT_COLS = 32;
-export const UNIT_ROWS = 32;
-export const UNIT_ATLAS = UNIT_CELL * UNIT_COLS; // 3072
+/** 26 columns is the tightest square that still holds all
+ *  ALL_TYPES x 5 directions x TOTAL_FRAMES cells, so the atlas stays small. */
+export const UNIT_COLS = 26;
+export const UNIT_ATLAS = UNIT_CELL * UNIT_COLS; // 2912
 
 export const PROP_CELL = 384;
 export const PROP_COLS = 5;

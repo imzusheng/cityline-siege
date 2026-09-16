@@ -7,14 +7,20 @@ import type { Camera } from '../renderer/camera';
 import type { Human, World } from '../simulation/world';
 
 export type Tool = 'select' | 'hold' | 'advance' | 'fallback' | 'force';
+/** Order issued by a plain click or a right-click: a tool, or the quick-move
+ *  fallback that has no toolbar button of its own. */
+export type ClickOrder = Tool | 'move';
 
 export interface InputHooks {
+  /** a drawn stroke becomes a formation line */
   issueLine(tool: Tool, ax: number, ay: number, bx: number, by: number): void;
-  moveOrder(x: number, y: number): void;
+  /** a single click becomes a short line centred on the point */
+  orderAt(tool: ClickOrder, x: number, y: number): void;
   onTool(tool: Tool): void;
   onSelectionChanged(): void;
   onHome(): void;
   onPause(): void;
+  onReinforce(): void;
   onFocus(h: Human | null): void;
 }
 
@@ -116,26 +122,29 @@ export class Input {
     const wasPanning = this.panning;
     this.panning = false;
 
-    if (wasPanning == false && e.button === 2 && !st.dragging) {
-      this.hooks.moveOrder(st.wx, st.wy);
+    // Right button: dragging pans the map, a click sends the selection there.
+    // Claiming the press for panning up front used to make this order
+    // unreachable, because every right press looked like a pan.
+    if (e.button === 2) {
+      if (!st.dragging) this.hooks.orderAt('move', st.wx, st.wy);
       return;
     }
     if (wasPanning) return;
     if (e.button !== 0) return;
 
     if (st.dragging) {
-      if (this.tool === 'select') {
-        this.selectRect(st.startX, st.startY, p.x, p.y, e.shiftKey || st.shift);
-      } else {
-        this.hooks.issueLine(this.tool, st.startWX, st.startWY, st.wx, st.wy);
-        this.setTool('select');
-      }
+      if (this.tool === 'select') this.selectRect(st.startX, st.startY, p.x, p.y, e.shiftKey || st.shift);
+      else this.hooks.issueLine(this.tool, st.startWX, st.startWY, st.wx, st.wy);
     } else {
       const now = performance.now();
       const dbl = now - this.lastClickTime < 320 && Math.abs(p.x - this.lastClickX) < 24 && Math.abs(p.y - this.lastClickY) < 24;
       this.lastClickTime = now; this.lastClickX = p.x; this.lastClickY = p.y;
-      if (dbl) this.selectGroupAt(p.x, p.y);
-      else if (this.tool === 'select') this.selectAt(p.x, p.y, e.shiftKey);
+      // Double-click picks up a nearby squad, but only while the selection tool
+      // is armed: with a movement tool two quick clicks are two orders, not a
+      // change of who is selected.
+      if (this.tool !== 'select') this.hooks.orderAt(this.tool, st.wx, st.wy);
+      else if (dbl) this.selectGroupAt(p.x, p.y);
+      else this.selectAt(p.x, p.y, e.shiftKey);
     }
   }
 
@@ -156,11 +165,12 @@ export class Input {
       case 'Digit4': this.setTool('fallback'); break;
       case 'Digit5': this.setTool('force'); break;
       case 'KeyH': this.hooks.onHome(); break;
+      case 'KeyR': this.hooks.onReinforce(); break;
       case 'Space': e.preventDefault(); this.hooks.onPause(); break;
       case 'Escape': this.clearSelection(); this.setTool('select'); break;
-      case 'KeyQ': this.camera.rotate(-0.14); break;
-      case 'KeyE': this.camera.rotate(0.14); break;
-      case 'KeyA': this.selectAll(); break;
+      // Select-all lives on the modifier that every other app uses for it: a
+      // bare A is already the camera's pan-left key.
+      case 'KeyA': if (e.ctrlKey || e.metaKey) { e.preventDefault(); this.selectAll(); } break;
       default: break;
     }
   }

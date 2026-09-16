@@ -27,6 +27,8 @@ export interface LineOrder {
   advanceSpeed: number;
   active: boolean;
   label: string;
+  /** one-line explanation shown with the order toast */
+  detail: string;
 }
 
 const ROLE_RANK: Record<string, number> = { breacher: 0, rifleman: 1, gunner: 2, medic: 3 };
@@ -39,6 +41,17 @@ export function orderLabel(kind: OrderKind): string {
     case 'force': return '强行军';
     case 'move': return '移动';
     default: return '待命';
+  }
+}
+
+export function orderDetail(kind: OrderKind): string {
+  switch (kind) {
+    case 'hold': return '到位后据守，朝向最近的感染体';
+    case 'advance': return '边打边推进，接触时减速';
+    case 'fallback': return '脱离接触，重新组织';
+    case 'force': return '持续行军，被完全挡住才停下';
+    case 'move': return '移动到指定位置';
+    default: return '';
   }
 }
 
@@ -138,6 +151,7 @@ export function issueOrder(
     slots, created: world.state.time, refit: 0.6,
     advanceSpeed: 0, active: true,
     label: orderLabel(kind),
+    detail: orderDetail(kind),
   };
   world.orders.set(order.id, order);
 

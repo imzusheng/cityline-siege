@@ -631,17 +631,32 @@ function bakeNavFromBuildings(city: City): void {
     const y0 = clamp(Math.floor(miny / NAV), 0, NAV_H - 1), y1 = clamp(Math.ceil(maxy / NAV), 0, NAV_H - 1);
     for (let cy = y0; cy <= y1; cy++) {
       for (let cx = x0; cx <= x1; cx++) {
-        const wx = (cx + 0.5) * NAV - b.cx, wy = (cy + 0.5) * NAV - b.cy;
-        const lx = wx * c + wy * s;
-        const ly = -wx * s + wy * c;
-        if (Math.abs(lx) <= hw + 1.5 && Math.abs(ly) <= hd + 1.5) nav.blocked[cy * NAV_W + cx] = 1;
+        if (nav.blocked[cy * NAV_W + cx]) continue;
+        // Conservative: a cell goes solid if ANY part of it meets the footprint.
+        // Testing the cell centre instead is far too coarse at NAV = 24 — a
+        // typical 38x38 footprint contains only one lattice centre, so 60% of it
+        // stayed open, 15% of all building area citywide was walkable, and units
+        // walked straight through walls. Projecting the cell's four corners into
+        // the building's frame and overlapping the box that comes back only
+        // tests the building's own axes, so it can over-report overlap but can
+        // never miss a cell a wall stands in: every open cell is guaranteed
+        // empty of buildings, which is what makes the point tests in steer()
+        // safe.
+        const bx = cx * NAV, by = cy * NAV;
+        let lminX = Infinity, lmaxX = -Infinity, lminY = Infinity, lmaxY = -Infinity;
+        for (let k = 0; k < 4; k++) {
+          const dx = bx + (k === 1 || k === 2 ? NAV : 0) - b.cx;
+          const dy = by + (k >= 2 ? NAV : 0) - b.cy;
+          const lx = dx * c + dy * s, ly = -dx * s + dy * c;
+          if (lx < lminX) lminX = lx;
+          if (lx > lmaxX) lmaxX = lx;
+          if (ly < lminY) lminY = ly;
+          if (ly > lmaxY) lmaxY = ly;
+        }
+        if (lmaxX > -hw && lminX < hw && lmaxY > -hd && lminY < hd) nav.blocked[cy * NAV_W + cx] = 1;
       }
     }
   }
-  // Buildings are solid. The "doorway" carve that used to sit here cleared a
-  // 3x3 block of cells around a point just outside one wall; at NAV = 24 that is
-  // a 72x72 unit hole, wider than most buildings, so it deleted roughly
-  // three quarters of the city's building volume from the grid.
 }
 
 function scatterTrees(city: City, rng: Rng): void {

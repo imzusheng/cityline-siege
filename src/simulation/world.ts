@@ -20,6 +20,8 @@ export type OrderKind = 'none' | 'hold' | 'advance' | 'fallback' | 'force' | 'mo
 export interface Human {
   id: number;
   x: number; y: number;
+  /** position at the previous simulation tick, for render interpolation */
+  prevX: number; prevY: number;
   vx: number; vy: number;
   faceX: number; faceY: number;
   /** last direction bucket the renderer drew (-1 = not yet resolved) */
@@ -50,6 +52,8 @@ export interface Human {
   aiTick: number;
   deadT: number;
   shotT: number;
+  /** seconds the aim pose is kept after the last shot */
+  aimHold: number;
   shotX: number;
   shotY: number;
   orderX: number;
@@ -59,6 +63,8 @@ export interface Human {
 export interface Zombie {
   id: number;
   x: number; y: number;
+  /** position at the previous simulation tick, for render interpolation */
+  prevX: number; prevY: number;
   vx: number; vy: number;
   faceX: number; faceY: number;
   /** last direction bucket the renderer drew (-1 = not yet resolved) */
@@ -165,7 +171,7 @@ export class World {
     const a = this.rng.range(0, TAU);
     const h: Human = {
       id: this.nextId++,
-      x: p.x, y: p.y, vx: 0, vy: 0,
+      x: p.x, y: p.y, prevX: p.x, prevY: p.y, vx: 0, vy: 0,
       faceX: Math.cos(a), faceY: Math.sin(a), faceBucket: -1,
       hp: st.hp, maxHp: st.hp,
       morale: MORALE.base + this.rng.jitter(6),
@@ -179,7 +185,7 @@ export class World {
       movePhase: this.rng.range(0, 1),
       lastHit: -99, stuck: 0, lod: 0, group, loseTrack: 0, melee: 0, suppress: 0,
       aiTick: this.rng.range(0, SIM_DT * 4),
-      deadT: 0, shotT: 0, shotX: 0, shotY: 0, orderX: p.x, orderY: p.y,
+      deadT: 0, shotT: 0, aimHold: 0, shotX: 0, shotY: 0, orderX: p.x, orderY: p.y,
     };
     this.humans.push(h);
     return h;
@@ -191,7 +197,7 @@ export class World {
     const a = this.rng.range(0, TAU);
     const z: Zombie = {
       id: this.nextId++,
-      x: p.x, y: p.y, vx: 0, vy: 0,
+      x: p.x, y: p.y, prevX: p.x, prevY: p.y, vx: 0, vy: 0,
       faceX: Math.cos(a), faceY: Math.sin(a), faceBucket: -1,
       hp: st.hp, maxHp: st.hp,
       cls, typeIndex: TYPE_INDEX[cls]!,

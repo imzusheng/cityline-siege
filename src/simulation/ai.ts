@@ -6,7 +6,7 @@
 
 import { clamp, faceTowards, lerp, TAU } from '../core/math';
 import { HUMAN_STATS, MORALE, SIM_DT, ZOMBIE_STATS } from '../core/config';
-import { advanceAnim, setAnim, type AnimName } from '../entities/anim';
+import { advanceAnim, pickLocomotion, setAnim, type AnimName } from '../entities/anim';
 import { canEngage, damageHuman, humanFire, zombieAttack, zombieHitBarricade, zombiePressure } from './combat';
 import { advanceOrder, refitOrder, type LineOrder } from './orders';
 import type { Human, World, Zombie } from './world';
@@ -16,6 +16,13 @@ const scratchB = { x: 0, y: 0 };
 const flowVec = { x: 0, y: 0 };
 
 const ZOMBIE_STRIDE = [1, 2, 4];
+
+/** Speed at which a soldier starts to run / to walk, in units per second. */
+const LOCO_RUN_ON = 27;
+const LOCO_WALK_ON = 3.5;
+/** Seconds the weapon stays up after the last shot, so a target dying does not
+ *  drop the soldier to the relaxed pose and back several times a second. */
+const AIM_HOLD = 0.45;
 
 // ------------------------------------------------------------------ steering
 
@@ -49,6 +56,7 @@ export function steer(world: World, u: { x: number; y: number; vx: number; vy: n
     if (nav.isOpenWorld(nx, u.y)) u.x = nx;
     if (nav.isOpenWorld(u.x, ny)) u.y = ny;
   }
+  nav.pushOutOfWalls(u, step);
   u.x = clamp(u.x, 6, 6394);
   u.y = clamp(u.y, 6, 4794);
   u.vx = (u.x - ox) / dt;
@@ -59,7 +67,7 @@ export function steer(world: World, u: { x: number; y: number; vx: number; vy: n
 // -------------------------------------------------------------------- humans
 
 export function tickHuman(world: World, h: Human, dt: number): void {
-  if (!h.alive) { h.deadT += dt; advanceAnim(h.anim, dt); return; }
+  if (!h.alive) { h.deadT += dt; return; }
   const st = stOf(h);
   h.retarget -= dt;
   h.melee = Math.max(0, h.melee - dt);
@@ -131,13 +139,19 @@ export function tickHuman(world: World, h: Human, dt: number): void {
       if (d < 40) {
         // never stand still inside a grapple: give ground, faster when shaken
         const back = h.morale < 45 ? 26 : 15;
-        h.x -= h.faceX * dt * back;
-        h.y -= h.faceY * dt * back;
+        world.nav.slideMove(h, -h.faceX * dt * back, -h.faceY * dt * back);
       }
     }
   } else {
     h.aim = Math.max(0, h.aim - dt * 3);
+    // The tracking target just died. Re-acquire on the next tick rather than
+    // waiting out the retarget timer: a soldier in a firefight loses its target
+    // several times a second, and every gap used to drop the weapon to the
+    // relaxed pose and snap it back up.
+    if (t && !t.alive) h.retarget = 0;
   }
+  if (firing) h.aimHold = AIM_HOLD;
+  else h.aimHold = Math.max(0, h.aimHold - dt);
 
   // ---------------------------------------------------------------- movement
   const order = h.orderId ? world.orders.get(h.orderId) : undefined;
@@ -198,8 +212,10 @@ export function tickHuman(world: World, h: Human, dt: number): void {
     speedMul *= 0.2;
   }
 
-  // separation from comrades — keeps the crowd organic instead of stacked
-  const sepR = 9.5;
+  // separation from comrades — keeps the crowd organic instead of stacked.
+  // Sized just under the line's own slot spacing (12.6) so a formed line keeps
+  // body space instead of crushing into a single pile.
+  const sepR = 12.4;
   let sx = 0, sy = 0, sn = 0;
   world.hashH.forEachNear(h.x, h.y, sepR, (i) => {
     if (sn >= 7) return;
@@ -213,15 +229,14 @@ export function tickHuman(world: World, h: Human, dt: number): void {
       sn++;
     }
   });
-  if (sn) { desiredX += sx * 0.85; desiredY += sy * 0.85; }
+  if (sn) { desiredX += sx * 1.05; desiredY += sy * 1.05; }
 
   const speed = h.speed * speedMul * (0.82 + 0.18 * (h.morale / 100));
   const moved = steer(world, h, desiredX, desiredY, speed, dt);
   if (moved < 0.15 && !hold) {
     h.stuck += dt;
     if (h.stuck > 0.7) {
-      h.x += world.rng.jitter(6);
-      h.y += world.rng.jitter(6);
+      world.nav.slideMove(h, world.rng.jitter(6), world.rng.jitter(6));
       h.stuck = 0;
     }
   } else h.stuck = 0;
@@ -229,7 +244,11 @@ export function tickHuman(world: World, h: Human, dt: number): void {
   // ---------------------------------------------------------------- facing
   if (!firing) {
     const sp = Math.hypot(h.vx, h.vy);
-    if (sp > 6) faceTowards(h, h.vx, h.vy, dt);
+    // A slower turn rate than the aiming turn: this direction comes from the
+    // velocity the solver achieved, which in a crowd reverses several times a
+    // second, and tracking that noise snaps the sprite between two atlas
+    // directions. Aiming still turns at the full rate.
+    if (sp > 6) faceTowards(h, h.vx, h.vy, dt, 3.2);
     else if (order) faceTowards(h, order.frontX, order.frontY, dt);
   }
 
@@ -238,10 +257,8 @@ export function tickHuman(world: World, h: Human, dt: number): void {
   let want: AnimName;
   if (h.melee > 0 && h.target && h.alive) want = 'melee';
   else if (h.shotT > 0) want = 'shoot';
-  else if (firing) want = 'aim';
-  else if (sp > 27) want = 'run';
-  else if (sp > 3.5) want = 'walk';
-  else want = 'idle';
+  else if (firing || h.aimHold > 0) want = 'aim';
+  else want = pickLocomotion(h.anim, sp, dt, LOCO_RUN_ON, LOCO_WALK_ON);
   advanceState(h.anim, want, dt);
 }
 
@@ -268,7 +285,7 @@ function stOf(h: Human) { return HUMAN_STATS[h.cls]; }
 // ------------------------------------------------------------------- zombies
 
 export function tickZombie(world: World, z: Zombie, dt: number, tick: number): void {
-  if (!z.alive) { z.deadT += dt; advanceAnim(z.anim, dt); return; }
+  if (!z.alive) { z.deadT += dt; return; }
   z.hitFlash = Math.max(0, z.hitFlash - dt);
   z.aiTick -= dt;
   if (z.aiTick <= 0) {
@@ -396,11 +413,7 @@ function zombieMove(world: World, z: Zombie, dt: number): void {
     const fl = Math.hypot(z.faceX, z.faceY) || 1;
     z.faceX /= fl; z.faceY /= fl;
   }
-  let want2: AnimName;
-  if (sp > st.speed * 0.72) want2 = 'run';
-  else if (sp > 1.6) want2 = 'walk';
-  else want2 = 'idle';
-  advanceState(z.anim, want2, dt);
+  advanceState(z.anim, pickLocomotion(z.anim, sp, dt, st.speed * 0.72, 1.6), dt);
 }
 
 // ------------------------------------------------------------------- orders

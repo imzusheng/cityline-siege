@@ -87,8 +87,7 @@ export function zombieAttack(world: World, z: Zombie, h: Human, dt: number): voi
   damageHuman(world, h, dmg, z);
   if (h.alive) {
     // shove the soldier back so the front line churns
-    h.x += z.faceX * 2.2;
-    h.y += z.faceY * 2.2;
+    world.nav.slideMove(h, z.faceX * 2.2, z.faceY * 2.2);
     if (world.rng.chance(0.35)) world.addEffect(FX.SPARK, h.x, h.y, 0, 0, 0.2, 7, 0.9, 0.85, 0.7, 0.5);
   }
   if (z.cls === 'brute') world.state.shake = Math.min(1, world.state.shake + 0.25);

@@ -36,6 +36,15 @@ let fps = 60;
 let follow: { x: number; y: number } | null = null;
 let uiClock = 0;
 let running = false;
+let lastAlpha = 1;
+
+const TOOL_HINT: Record<Tool, string> = {
+  select: '',
+  hold: '守住阵线 · 点击就地列阵，拖拽画出阵线（1 取消）',
+  advance: '推进 · 点击或拖拽，部队边打边向落点前进（1 取消）',
+  fallback: '后撤 · 点击或拖拽，部队脱离接触向落点收拢（1 取消）',
+  force: '强行军 · 点击或拖拽，部队直奔落点（1 取消）',
+};
 
 function deployInitial(world: World): void {
   const byClass = (i: number): HumanClass => {
@@ -102,25 +111,31 @@ function init(): void {
       const units = world.humans.filter(h => h.alive && h.selected);
       if (!units.length) { hud.toast('没有选中部队', '先框选一片士兵，再拖出命令线'); return; }
       const order = issueOrder(world, units, tool === 'select' ? 'hold' : tool as never, ax, ay, bx, by);
-      if (order) {
-        const label = order.label;
-        hud.toast(`${units.length} 人 · ${label}`, order.kind === 'advance' ? '部队将边打边推进' : order.kind === 'fallback' ? '脱离接触，重新组织' : '');
-      }
-      hud.setToolActive('select');
+      if (order) hud.toast(`${units.length} 人 · ${order.label}`, order.detail);
     },
-    moveOrder: (x, y) => {
+    orderAt: (tool, x, y) => {
       const units = world.humans.filter(h => h.alive && h.selected);
-      if (!units.length) return;
-      const dx = x - (units[0]!.x), dy = y - (units[0]!.y);
-      const l = Math.hypot(dx, dy) || 1;
-      const px = -dy / l, py = dx / l;
-      issueOrder(world, units, 'move', x - px * 60, y - py * 60, x + px * 60, y + py * 60);
-      hud.setToolActive('select');
+      if (!units.length) { hud.toast('没有选中部队', '先按 1 框选士兵，再选 2-5 下达命令'); return; }
+      // Turn a single click into a short stroke centred on the point and square
+      // across the direction the troops must travel, so the click reads as "go
+      // there in this posture" rather than as a line drawn through the point.
+      let cx = 0, cy = 0;
+      for (const u of units) { cx += u.x; cy += u.y; }
+      cx /= units.length; cy /= units.length;
+      const dx = x - cx, dy = y - cy;
+      const l = Math.hypot(dx, dy);
+      let px = Math.cos(camera.rot), py = Math.sin(camera.rot);
+      if (l > 1e-3) { px = -dy / l; py = dx / l; }
+      const half = tool === 'hold' ? 95 : 72;
+      const kind = tool === 'select' ? 'hold' : tool;
+      const order = issueOrder(world, units, kind, x - px * half, y - py * half, x + px * half, y + py * half);
+      if (order) hud.toast(`${units.length} 人 · ${order.label}`, order.detail);
     },
-    onTool: (t) => hud.setToolActive(t),
+    onTool: (t) => { hud.setToolActive(t); hud.toolHint = TOOL_HINT[t] ?? ''; },
     onSelectionChanged: () => undefined,
     onHome: () => { camera.fitWorld(); follow = null; },
     onPause: () => { world.state.paused = !world.state.paused; hud.toast(world.state.paused ? '已暂停' : '继续'); },
+    onReinforce: () => callReinforcements(),
     onFocus: (h) => { follow = h ? { x: h.x, y: h.y } : null; },
   });
 
@@ -219,6 +234,12 @@ function frame(now: number): void {
   }
   if (running && !world.state.paused) input.update(dt);
 
+  // How far this display frame sits between the last two simulation ticks. The
+  // world only advances at SIM_HZ, so without this a sprite holds one position
+  // for two or three frames and then jumps — motion at 25 Hz shown on a 60 Hz
+  // display, which is exactly what reads as jitter. Paused or finished, there is
+  // no pending tick to blend toward, so show the newest state as it is.
+  let alpha = 1;
   if (running && !world.state.paused && !world.state.ended) {
     accumulator += dt;
     let steps = 0;
@@ -228,13 +249,15 @@ function frame(now: number): void {
       steps++;
     }
     if (accumulator > SIM_DT * MAX_STEPS_PER_FRAME) accumulator = 0;
+    alpha = Math.max(0, Math.min(1, accumulator / SIM_DT));
   } else {
     accumulator = 0;
   }
+  lastAlpha = alpha;
 
   world.focusX = camera.sx;
   world.focusY = camera.sy;
-  renderer.render(world);
+  renderer.render(world, alpha);
 
   const st = input.pointer;
   const drawing = running && st.down && st.dragging && input.tool !== 'select' && !input.panning;
@@ -353,6 +376,9 @@ interface Snapshot {
     return renderer.debugPasses;
   },
   world: () => world,
+  tool: () => input.tool,
+  alpha: () => lastAlpha,
+  screenToWorld: (x: number, y: number) => camera.screenToWorld(x, y),
   renderer: () => renderer,
   firstHuman: () => {
     for (const h of world.humans) if (h.alive) return { x: h.x, y: h.y };

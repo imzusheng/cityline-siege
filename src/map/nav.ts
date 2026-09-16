@@ -233,11 +233,33 @@ export class NavGrid {
     }
   }
 
-  /** Approximate blocked-cell scan used to keep units out of walls. */
-  pushOutOfWalls(p: { x: number; y: number }, radius: number): void {
+  /**
+   * Displace a point by (dx, dy), sliding along solid cells instead of entering
+   * them. Used by every movement that does not go through steer() — a melee
+   * shove, a rout, an unstick jitter — so none of them can push a unit into a
+   * building.
+   */
+  slideMove(p: { x: number; y: number }, dx: number, dy: number): void {
+    const nx = p.x + dx, ny = p.y + dy;
+    if (this.isOpenWorld(nx, ny)) { p.x = nx; p.y = ny; return; }
+    if (this.isOpenWorld(nx, p.y)) p.x = nx;
+    if (this.isOpenWorld(p.x, ny)) p.y = ny;
+  }
+
+  /**
+   * Safety net for a unit that is somehow standing inside a solid cell. Creeps
+   * it back toward the nearest open cell by at most `step` units rather than
+   * teleporting it to the cell centre, which would read as a jump on screen.
+   */
+  pushOutOfWalls(p: { x: number; y: number }, step: number): void {
     const c = this.cellOf(p.x, p.y);
     if (!this.blocked[c]) return;
     const o = this.nearestOpen(p.x, p.y, 6);
-    p.x = o.x; p.y = o.y;
+    const dx = o.x - p.x, dy = o.y - p.y;
+    const l = Math.hypot(dx, dy);
+    if (l < 1e-4) return;
+    const k = Math.min(1, step / l);
+    p.x += dx * k;
+    p.y += dy * k;
   }
 }

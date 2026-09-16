@@ -169,11 +169,15 @@ export class Hud {
     void hp;
   }
 
+  /** set by the input layer to describe the currently armed movement tool */
+  toolHint = '';
+
   private updateHint(world: World): void {
     let selected = 0;
     for (const h of world.humans) if (h.alive && h.selected) selected++;
     let text = '';
-    if (world.state.time < 12) text = '按住左键框选士兵，然后按 2 画出一条阵线';
+    if (this.toolHint && selected > 0) text = this.toolHint;
+    else if (world.state.time < 12) text = '拖拽框选士兵，再按 2-5 选命令：点击就地行动，拖拽画出阵线';
     else if (selected === 0) text = '框选部队以发出命令';
     this.hintbar.textContent = text;
     this.hintbar.classList.toggle('on', !!text);
